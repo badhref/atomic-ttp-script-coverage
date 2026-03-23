@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MITRE ATT&CK Heatmap</title>
+  <style>
+    :root {
+      --bg: #0d1117; --surface: #161b22; --surface2: #1c2128;
+      --border: #30363d; --accent: #58a6ff; --accent2: #f78166;
+      --accent3: #3fb950; --accent4: #d2a8ff; --text: #e6edf3;
+      --text-muted: #8b949e; --danger: #da3633;
+      --cov-none: transparent; --cov-partial: #e3b341; --cov-full: #3fb950;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 10px 20px; display: flex; align-items: center; gap: 14px;
+      flex-shrink: 0; z-index: 100;
+      animation: fadeDown 0.4s ease both;
+    }
+    @keyframes fadeDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+    .logo { width:32px; height:32px; background:linear-gradient(135deg,var(--accent),var(--accent4)); border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; position:relative; overflow:hidden; }
+    .logo::after { content:''; position:absolute; left:0; right:0; height:2px; background:rgba(255,255,255,0.3); top:-4px; animation:scanLine 2.8s ease-in-out infinite; }
+    @keyframes scanLine { 0%{top:-4px;opacity:0} 15%{opacity:.6} 85%{opacity:.4} 100%{top:105%;opacity:0} }
+    header h1 { font-size:18px; font-weight:600; }
+    header p  { font-size:12px; color:var(--text-muted); }
+    .header-actions { margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; }
+
+    /* ── Buttons ── */
+    .btn { padding:6px 13px; border-radius:6px; border:1px solid var(--border); font-size:12px; font-weight:500; cursor:pointer; font-family:inherit; color:var(--text); background:var(--surface2); transition:all .15s; display:inline-flex; align-items:center; gap:5px; }
+    .btn:hover { border-color:var(--accent); color:var(--accent); }
+    .btn-primary { background:var(--accent); border-color:var(--accent); color:#000; font-weight:600; }
+    .btn-primary:hover { filter:brightness(1.1); color:#000; }
+    .btn-danger { background:rgba(218,54,51,.15); border-color:rgba(218,54,51,.4); color:var(--danger); }
+    .btn-danger:hover { background:rgba(218,54,51,.25); }
+
+    /* ── Layout ── */
+    .app-layout { display:flex; flex:1; overflow:hidden; }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width:220px; flex-shrink:0; background:var(--surface); border-right:1px solid var(--border);
+      display:flex; flex-direction:column; overflow:hidden;
+    }
+    .sidebar-section { padding:12px 14px; border-bottom:1px solid var(--border); }
+    .sidebar-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); margin-bottom:8px; }
+    .sidebar-scroll { flex:1; overflow-y:auto; }
+    .sidebar-scroll::-webkit-scrollbar { width:4px; }
+    .sidebar-scroll::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+    /* Actor rows */
+    .actor-row {
+      display:flex; align-items:center; gap:8px; padding:5px 14px;
+      cursor:pointer; transition:background .12s; font-size:12px;
+    }
+    .actor-row:hover { background:var(--surface2); }
+    .actor-swatch { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+    .actor-label { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .actor-count { font-size:10px; color:var(--text-muted); flex-shrink:0; }
+    .actor-toggle { width:14px; height:14px; flex-shrink:0; accent-color:var(--accent); cursor:pointer; }
+    .actor-row.disabled .actor-label, .actor-row.disabled .actor-count { opacity:.35; }
+
+    /* Legend */
+    .legend-row { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-muted); margin-bottom:4px; }
+    .legend-swatch { width:14px; height:14px; border-radius:2px; flex-shrink:0; border:1px solid rgba(255,255,255,.08); }
+
+    /* Coverage mode select */
+    .mode-toggle { display:flex; gap:0; border:1px solid var(--border); border-radius:6px; overflow:hidden; }
+    .mode-btn { flex:1; padding:5px 0; font-size:11px; font-weight:500; text-align:center; cursor:pointer; background:transparent; border:none; color:var(--text-muted); transition:all .15s; font-family:inherit; }
+    .mode-btn.active { background:var(--accent); color:#000; font-weight:700; }
+
+    /* ── Heatmap area ── */
+    .heatmap-area { flex:1; overflow:auto; padding:12px 16px; }
+    .heatmap-area::-webkit-scrollbar { width:8px; height:8px; }
+    .heatmap-area::-webkit-scrollbar-track { background:var(--bg); }
+    .heatmap-area::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+
+    .heatmap-grid { display:flex; gap:3px; min-width:max-content; align-items:flex-start; }
+
+    /* Tactic column */
+    .tactic-col { display:flex; flex-direction:column; gap:2px; width:148px; }
+    .tactic-header {
+      background:var(--surface2); border:1px solid var(--border); border-radius:5px 5px 0 0;
+      padding:6px 7px; font-size:10px; font-weight:700; text-align:center;
+      text-transform:uppercase; letter-spacing:.05em; color:var(--accent4);
+      position:sticky; top:0; z-index:10;
+    }
+    .tactic-header .tactic-count { font-size:9px; color:var(--text-muted); font-weight:400; display:block; margin-top:1px; }
+
+    /* Technique cell */
+    .tech-cell {
+      border:1px solid rgba(255,255,255,.05);
+      border-left:4px solid transparent;
+      border-radius:3px;
+      padding:4px 6px;
+      font-size:10px;
+      cursor:pointer;
+      transition:filter .12s, transform .08s, border-left-color .2s;
+      position:relative;
+      min-height:30px;
+      display:flex; flex-direction:column; justify-content:center;
+    }
+    .tech-cell:hover { filter:brightness(1.35); transform:scaleY(1.04); z-index:5; }
+    .tech-cell .tech-id { font-family:monospace; font-weight:700; font-size:9.5px; color:#fff; opacity:.9; }
+    .tech-cell .tech-name { font-size:9px; color:rgba(255,255,255,.6); margin-top:1px; line-height:1.2; }
+
+    /* Coverage border — left edge shows YOUR detection coverage */
+    .tech-cell.cov-partial { border-left-color: var(--cov-partial) !important; }
+    .tech-cell.cov-full    { border-left-color: var(--cov-full)    !important; }
+
+    /* Priority cell backgrounds
+       Active  = at least one enabled actor uses this technique
+       Dimmed  = ranked but no enabled actor currently uses it               */
+    .tech-cell.pri-critical        { background: rgba(247,129,102,0.55); }
+    .tech-cell.pri-high            { background: rgba(227,179,65, 0.50); }
+    .tech-cell.pri-medium          { background: rgba(88, 166,255, 0.38); }
+    .tech-cell.pri-critical.dimmed { background: rgba(247,129,102,0.10); }
+    .tech-cell.pri-high.dimmed     { background: rgba(227,179,65, 0.09); }
+    .tech-cell.pri-medium.dimmed   { background: rgba(88, 166,255, 0.09); }
+
+    /* Not ranked / not in tracker data */
+    .tech-cell.unranked            { background: #161b22; }
+
+
+    /* ── Tooltip ── */
+    #tooltip {
+      position:fixed; z-index:999; background:#1c2128; border:1px solid var(--border);
+      border-radius:8px; padding:10px 13px; font-size:12px; pointer-events:none;
+      max-width:240px; box-shadow:0 8px 24px rgba(0,0,0,.5);
+      transition:opacity .1s; opacity:0;
+    }
+    #tooltip.visible { opacity:1; }
+    #tooltip .tt-id   { font-family:monospace; font-weight:700; color:var(--accent); font-size:13px; }
+    #tooltip .tt-name { color:var(--text); margin-bottom:6px; }
+    #tooltip .tt-cov  { font-size:11px; margin-bottom:4px; }
+    #tooltip .tt-actors { font-size:11px; color:var(--text-muted); }
+    #tooltip .tt-actor-tag { display:inline-block; padding:1px 5px; border-radius:3px; margin:1px; font-size:10px; }
+
+    /* ── Toast ── */
+    #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:9px 18px; font-size:13px; z-index:1000; transition:transform .25s cubic-bezier(.22,1,.36,1), opacity .25s; opacity:0; }
+    #toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
+
+    /* ── Status bar ── */
+    .status-bar { background:var(--surface); border-top:1px solid var(--border); padding:5px 16px; font-size:11px; color:var(--text-muted); display:flex; gap:16px; align-items:center; flex-shrink:0; }
+    .status-dot { width:7px; height:7px; border-radius:50%; background:var(--accent3); flex-shrink:0; }
+
+    /* ── Modal ── */
+    .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:500; display:flex; align-items:center; justify-content:center; }
+    .modal { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px; max-width:520px; width:90%; }
+    .modal h3 { font-size:15px; margin-bottom:12px; }
+    .modal textarea { width:100%; height:180px; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:monospace; font-size:11px; padding:8px; resize:vertical; }
+    .modal-actions { margin-top:12px; display:flex; gap:8px; justify-content:flex-end; }
+
+    /* Animations */
+    @keyframes cellReveal { from{opacity:0;transform:scale(.85)} to{opacity:1;transform:scale(1)} }
+    .tech-cell { animation:cellReveal .2s ease both; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🗺</div>
+  <div>
+    <h1>MITRE ATT&CK Heatmap</h1>
+    <p>Coverage mapping &amp; threat actor overlay</p>
+  </div>
+  <div class="header-actions">
+    <button class="btn" onclick="loadFromStorage()">🔄 Sync Tracker Data</button>
+    <button class="btn" onclick="openImport()">⬆ Import Layer</button>
+    <button class="btn" onclick="exportCoverageLayer()">⬇ Export Coverage</button>
+    <button class="btn" onclick="exportHeatmapLayer()">⬇ Export Heatmap</button>
+    <button class="btn btn-danger" onclick="clearCoverage()">✕ Clear Coverage</button>
+  </div>
+</header>
+
+<div class="app-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">Coverage Mode</div>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="mode-click" onclick="setMode('click')">Click to Set</button>
+        <button class="mode-btn" id="mode-view"  onclick="setMode('view')">View Only</button>
+      </div>
+      <div style="font-size:10px;color:var(--text-muted);margin-top:6px">
+        Click a cell to cycle: <strong style="color:rgba(255,255,255,.5)">None</strong> → <strong style="color:var(--cov-partial)">Partial</strong> → <strong style="color:var(--cov-full)">Full</strong>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Legend</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:rgba(247,129,102,0.55)"></div> 🔴 Critical</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:rgba(227,179,65,0.50)"></div> 🟡 High</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:rgba(88,166,255,0.38)"></div> 🔵 Medium</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:rgba(247,129,102,0.10);border:1px solid rgba(247,129,102,0.2)"></div> Ranked, not active</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#161b22"></div> Not in tracker</div>
+      <hr style="border-color:var(--border);margin:6px 0">
+      <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Left border = your coverage</div>
+      <div class="legend-row"><div class="legend-swatch" style="border-left:4px solid var(--cov-partial);background:transparent"></div> Partial</div>
+      <div class="legend-row"><div class="legend-swatch" style="border-left:4px solid var(--cov-full);background:transparent"></div> Full</div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Threat Actors</div>
+      <div style="display:flex;gap:4px;margin-bottom:6px">
+        <button class="btn" style="flex:1;font-size:10px;padding:3px" onclick="toggleAllActors(true)">All On</button>
+        <button class="btn" style="flex:1;font-size:10px;padding:3px" onclick="toggleAllActors(false)">All Off</button>
+      </div>
+    </div>
+    <div class="sidebar-scroll">
+      <div id="actor-list">
+        <div style="padding:14px;font-size:12px;color:var(--text-muted)">No actor data loaded.<br>Click "Sync Tracker Data" or open from the main tracker.</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Heatmap -->
+  <main class="heatmap-area">
+    <div id="heatmap-grid" class="heatmap-grid"></div>
+  </main>
+
+</div>
+
+<div class="status-bar">
+  <div class="status-dot"></div>
+  <span id="status-text">Ready — click "Sync Tracker Data" to load actor TTPs</span>
+  <span style="margin-left:auto;color:var(--text-muted)" id="cov-summary"></span>
+</div>
+
+<div id="tooltip"></div>
+<div id="toast"></div>
+
+<!-- Import modal -->
+<div id="import-modal" style="display:none" class="modal-backdrop" onclick="if(event.target===this)closeImport()">
+  <div class="modal">
+    <h3>Import ATT&CK Navigator Layer / Coverage JSON</h3>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Paste an ATT&CK Navigator layer JSON or a previously exported coverage JSON below.</p>
+    <textarea id="import-textarea" placeholder='{"name":"...","techniques":[...]}'></textarea>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeImport()">Cancel</button>
+      <button class="btn btn-primary" onclick="doImport()">Import</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// TACTIC & TECHNIQUE DATA  (MITRE ATT&CK Enterprise v14 key techniques)
+// ─────────────────────────────────────────────────────────────────────────────
+const TACTICS = [
+  {id:'TA0043',name:'Reconnaissance',       short:'Recon'},
+  {id:'TA0042',name:'Resource Development', short:'Res Dev'},
+  {id:'TA0001',name:'Initial Access',       short:'Init Access'},
+  {id:'TA0002',name:'Execution',            short:'Execution'},
+  {id:'TA0003',name:'Persistence',          short:'Persistence'},
+  {id:'TA0004',name:'Privilege Escalation', short:'Priv Esc'},
+  {id:'TA0005',name:'Defense Evasion',      short:'Def Evasion'},
+  {id:'TA0006',name:'Credential Access',    short:'Cred Access'},
+  {id:'TA0007',name:'Discovery',            short:'Discovery'},
+  {id:'TA0008',name:'Lateral Movement',     short:'Lat Movement'},
+  {id:'TA0009',name:'Collection',           short:'Collection'},
+  {id:'TA0011',name:'Command & Control',    short:'C2'},
+  {id:'TA0010',name:'Exfiltration',         short:'Exfiltration'},
+  {id:'TA0040',name:'Impact',               short:'Impact'},
+];
+
+// [tacticId, [[techId, techName], ...]]
+const TACTIC_DATA = [
+  ['TA0043',[
+    ['T1595','Active Scanning'],['T1592','Gather Victim Host Info'],
+    ['T1589','Gather Victim Identity Info'],['T1590','Gather Victim Network Info'],
+    ['T1591','Gather Victim Org Info'],['T1598','Phishing for Info'],
+    ['T1596','Search Open Tech Databases'],['T1593','Search Open Websites'],
+    ['T1594','Search Victim-Owned Websites'],
+  ]],
+  ['TA0042',[
+    ['T1583','Acquire Infrastructure'],['T1586','Compromise Accounts'],
+    ['T1584','Compromise Infrastructure'],['T1587','Develop Capabilities'],
+    ['T1588','Obtain Capabilities'],['T1608','Stage Capabilities'],
+    ['T1585','Establish Accounts'],
+  ]],
+  ['TA0001',[
+    ['T1189','Drive-by Compromise'],['T1190','Exploit Public-Facing App'],
+    ['T1133','External Remote Services'],['T1200','Hardware Additions'],
+    ['T1566','Phishing'],['T1091','Replication via Removable Media'],
+    ['T1195','Supply Chain Compromise'],['T1199','Trusted Relationship'],
+    ['T1078','Valid Accounts'],
+  ]],
+  ['TA0002',[
+    ['T1059','Command & Scripting Interpreter'],['T1203','Exploit for Client Execution'],
+    ['T1559','Inter-Process Communication'],['T1106','Native API'],
+    ['T1053','Scheduled Task/Job'],['T1072','Software Deployment Tools'],
+    ['T1569','System Services'],['T1204','User Execution'],
+    ['T1047','Windows Mgmt Instrumentation'],['T1610','Deploy Container'],
+  ]],
+  ['TA0003',[
+    ['T1098','Account Manipulation'],['T1197','BITS Jobs'],
+    ['T1547','Boot/Logon Autostart Execution'],['T1037','Boot/Logon Init Scripts'],
+    ['T1176','Browser Extensions'],['T1554','Compromise Client Software Binary'],
+    ['T1136','Create Account'],['T1543','Create/Modify System Process'],
+    ['T1546','Event Triggered Execution'],['T1574','Hijack Execution Flow'],
+    ['T1556','Modify Authentication Process'],['T1137','Office App Startup'],
+    ['T1542','Pre-OS Boot'],['T1505','Server Software Component'],
+    ['T1205','Traffic Signaling'],
+  ]],
+  ['TA0004',[
+    ['T1548','Abuse Elevation Control Mechanism'],['T1134','Access Token Manipulation'],
+    ['T1484','Domain Policy Modification'],['T1611','Escape to Host'],
+    ['T1068','Exploit for Privilege Escalation'],['T1055','Process Injection'],
+    ['T1053','Scheduled Task/Job'],['T1078','Valid Accounts'],
+  ]],
+  ['TA0005',[
+    ['T1140','Deobfuscate/Decode Files'],['T1480','Execution Guardrails'],
+    ['T1211','Exploit for Defense Evasion'],['T1222','File & Dir Permissions Mod'],
+    ['T1564','Hide Artifacts'],['T1562','Impair Defenses'],
+    ['T1070','Indicator Removal'],['T1202','Indirect Command Execution'],
+    ['T1036','Masquerading'],['T1112','Modify Registry'],
+    ['T1027','Obfuscated Files or Info'],['T1014','Rootkit'],
+    ['T1218','System Binary Proxy Execution'],['T1553','Subvert Trust Controls'],
+    ['T1550','Use Alternate Auth Material'],['T1497','Virtualization/Sandbox Evasion'],
+    ['T1220','XSL Script Processing'],['T1207','Rogue Domain Controller'],
+    ['T1600','Weaken Encryption'],['T1601','Modify System Image'],
+  ]],
+  ['TA0006',[
+    ['T1110','Brute Force'],['T1555','Creds from Password Stores'],
+    ['T1212','Exploit for Credential Access'],['T1187','Forced Authentication'],
+    ['T1606','Forge Web Credentials'],['T1056','Input Capture'],
+    ['T1557','Adversary-in-the-Middle'],['T1111','MFA Interception'],
+    ['T1621','MFA Request Generation'],['T1040','Network Sniffing'],
+    ['T1003','OS Credential Dumping'],['T1528','Steal App Access Token'],
+    ['T1558','Steal/Forge Kerberos Tickets'],['T1539','Steal Web Session Cookie'],
+    ['T1552','Unsecured Credentials'],['T1649','Steal/Forge Auth Certificates'],
+  ]],
+  ['TA0007',[
+    ['T1087','Account Discovery'],['T1482','Domain Trust Discovery'],
+    ['T1083','File & Directory Discovery'],['T1615','Group Policy Discovery'],
+    ['T1046','Network Service Discovery'],['T1135','Network Share Discovery'],
+    ['T1201','Password Policy Discovery'],['T1069','Permission Groups Discovery'],
+    ['T1057','Process Discovery'],['T1012','Query Registry'],
+    ['T1018','Remote System Discovery'],['T1518','Software Discovery'],
+    ['T1082','System Information Discovery'],['T1016','System Network Config Discovery'],
+    ['T1049','System Network Connections Discovery'],['T1033','System Owner/User Discovery'],
+    ['T1124','System Time Discovery'],['T1120','Peripheral Device Discovery'],
+  ]],
+  ['TA0008',[
+    ['T1210','Exploit Remote Services'],['T1534','Internal Spearphishing'],
+    ['T1570','Lateral Tool Transfer'],['T1563','Remote Service Session Hijacking'],
+    ['T1021','Remote Services'],['T1091','Replication via Removable Media'],
+    ['T1080','Taint Shared Content'],['T1072','Software Deployment Tools'],
+    ['T1550','Use Alternate Auth Material'],
+  ]],
+  ['TA0009',[
+    ['T1560','Archive Collected Data'],['T1123','Audio Capture'],
+    ['T1119','Automated Collection'],['T1115','Clipboard Data'],
+    ['T1530','Data from Cloud Storage'],['T1213','Data from Info Repositories'],
+    ['T1005','Data from Local System'],['T1039','Data from Network Shared Drive'],
+    ['T1025','Data from Removable Media'],['T1074','Data Staged'],
+    ['T1114','Email Collection'],['T1056','Input Capture'],
+    ['T1185','Browser Session Hijacking'],['T1113','Screen Capture'],
+    ['T1125','Video Capture'],['T1602','Data from Config Repository'],
+  ]],
+  ['TA0011',[
+    ['T1071','Application Layer Protocol'],['T1092','Comm via Removable Media'],
+    ['T1132','Data Encoding'],['T1001','Data Obfuscation'],
+    ['T1568','Dynamic Resolution'],['T1573','Encrypted Channel'],
+    ['T1008','Fallback Channels'],['T1105','Ingress Tool Transfer'],
+    ['T1104','Multi-Stage Channels'],['T1095','Non-Application Layer Protocol'],
+    ['T1571','Non-Standard Port'],['T1572','Protocol Tunneling'],
+    ['T1090','Proxy'],['T1219','Remote Access Software'],
+    ['T1205','Traffic Signaling'],['T1102','Web Service'],
+  ]],
+  ['TA0010',[
+    ['T1020','Automated Exfiltration'],['T1030','Data Transfer Size Limits'],
+    ['T1048','Exfil Over Alternative Protocol'],['T1041','Exfil Over C2 Channel'],
+    ['T1011','Exfil Over Other Network Medium'],['T1052','Exfil Over Physical Medium'],
+    ['T1567','Exfil Over Web Service'],['T1029','Scheduled Transfer'],
+    ['T1537','Transfer Data to Cloud Account'],
+  ]],
+  ['TA0040',[
+    ['T1531','Account Access Removal'],['T1485','Data Destruction'],
+    ['T1486','Data Encrypted for Impact'],['T1565','Data Manipulation'],
+    ['T1491','Defacement'],['T1561','Disk Wipe'],
+    ['T1499','Endpoint Denial of Service'],['T1495','Firmware Corruption'],
+    ['T1490','Inhibit System Recovery'],['T1498','Network Denial of Service'],
+    ['T1496','Resource Hijacking'],['T1489','Service Stop'],
+    ['T1529','System Shutdown/Reboot'],
+  ]],
+];
+
+// Flat lookup: techId → {name, tactic}
+const TECH_LOOKUP = {};
+const TACTIC_MAP  = {};   // tacticId → [{id, name}]
+TACTIC_DATA.forEach(([tid, techs]) => {
+  TACTIC_MAP[tid] = techs.map(([id, name]) => ({ id, name }));
+  techs.forEach(([id, name]) => {
+    TECH_LOOKUP[id] = { name, tactic: tid };
+  });
+});
+
+// Actor palette
+const ACTOR_PALETTE = [
+  '#58a6ff','#f78166','#3fb950','#d2a8ff','#ffa657',
+  '#79c0ff','#ff7b72','#56d364','#e3b341','#a5d6ff',
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────────────────
+const STATE = {
+  actors:      [],    // [{name, ttps:Set, color, enabled}]
+  coverage:    {},    // techId → 0|1|2  (none/partial/full)
+  ttpPriority: {},    // baseId → 'critical'|'high'|'medium'  (matches tracker logic)
+  totalActors: 0,
+  mode:        'click',
+};
+
+// Normalize: T1059.001 → T1059 (for heatmap matching)
+function baseId(id) { return id.split('.')[0]; }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOAD FROM LOCALSTORAGE  (written by main tracker / atomic builder)
+// ─────────────────────────────────────────────────────────────────────────────
+function loadFromStorage() {
+  const raw = localStorage.getItem('ttp-tracker-actors');
+  if (!raw) { showToast('No tracker data found — save from the main tracker first'); return; }
+  try {
+    const data = JSON.parse(raw);           // [{actor, ttps:[...]}]
+    STATE.totalActors = data.length;
+
+    STATE.actors = data.map((row, i) => ({
+      name:    row.actor,
+      ttps:    new Set(row.ttps.map(baseId)),  // normalize sub-techs to base
+      color:   ACTOR_PALETTE[i % ACTOR_PALETTE.length],
+      enabled: true,
+    }));
+
+    // ── Compute priorities using IDENTICAL formula to the tracker ──
+    // Base-ID frequency: each actor counted once per base technique.
+    const baseFreq = {};
+    data.forEach(({ ttps }) => {
+      const seenBase = new Set();
+      ttps.forEach(t => {
+        const b = baseId(t);
+        if (!seenBase.has(b)) { seenBase.add(b); baseFreq[b] = (baseFreq[b] || 0) + 1; }
+      });
+    });
+    STATE.ttpPriority = {};
+    Object.entries(baseFreq).forEach(([id, count]) => {
+      const ratio = count / data.length;
+      STATE.ttpPriority[id] = ratio >= 0.5 ? 'critical' : ratio >= 0.25 ? 'high' : 'medium';
+    });
+
+    renderActorPanel();
+    updateAllCells();
+
+    const crit = Object.values(STATE.ttpPriority).filter(v => v === 'critical').length;
+    const high = Object.values(STATE.ttpPriority).filter(v => v === 'high').length;
+    const med  = Object.values(STATE.ttpPriority).filter(v => v === 'medium').length;
+    showToast(`Loaded ${data.length} actors · 🔴 ${crit} Critical · 🟡 ${high} High · 🔵 ${med} Medium`);
+    updateStatus();
+  } catch(e) { showToast('Failed to parse tracker data: ' + e.message); }
+}
+
+// Also load coverage from localStorage
+function loadCoverageFromStorage() {
+  const raw = localStorage.getItem('ttp-heatmap-coverage');
+  if (raw) { try { STATE.coverage = JSON.parse(raw); } catch(e) {} }
+}
+
+function saveCoverageToStorage() {
+  localStorage.setItem('ttp-heatmap-coverage', JSON.stringify(STATE.coverage));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RENDER HEATMAP GRID
+// ─────────────────────────────────────────────────────────────────────────────
+function renderGrid() {
+  const grid = document.getElementById('heatmap-grid');
+  let html = '';
+  TACTICS.forEach((tac, ti) => {
+    const techs = TACTIC_MAP[tac.id] || [];
+    html += `<div class="tactic-col" data-tactic="${tac.id}">`;
+    html += `<div class="tactic-header">${tac.short}<span class="tactic-count">${techs.length} techniques</span></div>`;
+    techs.forEach(({ id, name }, idx) => {
+      const delay = (ti * 0.015 + idx * 0.012).toFixed(3);
+      html += `<div class="tech-cell unranked" id="cell-${id}" data-id="${id}"
+        style="animation-delay:${delay}s"
+        onclick="onCellClick('${id}')"
+        onmouseenter="showTip(event,'${id}')"
+        onmouseleave="hideTip()">
+        <span class="tech-id">${id}</span>
+        <span class="tech-name">${name}</span>
+      </div>`;
+    });
+    html += '</div>';
+  });
+  grid.innerHTML = html;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CELL COLORING
+// ─────────────────────────────────────────────────────────────────────────────
+
+function updateCell(id) {
+  const el = document.getElementById(`cell-${id}`);
+  if (!el) return;
+
+  const enabled  = STATE.actors.filter(a => a.enabled);
+  const active   = enabled.some(a => a.ttps.has(baseId(id)));  // any enabled actor uses it
+  const cov      = STATE.coverage[id] || 0;
+  const pri      = STATE.ttpPriority[baseId(id)];
+
+  // Clear all state classes
+  el.classList.remove('pri-critical','pri-high','pri-medium','unranked','dimmed');
+  el.style.background = '';
+
+  // Apply priority class + dimmed if no enabled actor uses it
+  if (pri) {
+    el.classList.add(`pri-${pri}`);
+    if (!active) el.classList.add('dimmed');
+  } else {
+    el.classList.add('unranked');
+  }
+
+  // Coverage left-border
+  el.classList.toggle('cov-partial', cov === 1);
+  el.classList.toggle('cov-full',    cov === 2);
+}
+
+function updateAllCells() {
+  Object.values(TECH_LOOKUP).forEach(({ }, id) => {}); // warm up
+  document.querySelectorAll('.tech-cell').forEach(el => updateCell(el.dataset.id));
+  updateCovSummary();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ACTOR PANEL
+// ─────────────────────────────────────────────────────────────────────────────
+function renderActorPanel() {
+  const list = document.getElementById('actor-list');
+  if (STATE.actors.length === 0) {
+    list.innerHTML = '<div style="padding:14px;font-size:12px;color:var(--text-muted)">No actors loaded.</div>';
+    return;
+  }
+  let html = '';
+  STATE.actors.forEach((a, i) => {
+    html += `<div class="actor-row ${a.enabled ? '' : 'disabled'}" onclick="toggleActor(${i})">
+      <input type="checkbox" class="actor-toggle" ${a.enabled ? 'checked' : ''} onclick="event.stopPropagation();toggleActor(${i})">
+      <div class="actor-swatch" style="background:${a.color}"></div>
+      <span class="actor-label" title="${a.name}">${a.name}</span>
+      <span class="actor-count">${a.ttps.size}</span>
+    </div>`;
+  });
+  list.innerHTML = html;
+}
+
+function toggleActor(i) {
+  STATE.actors[i].enabled = !STATE.actors[i].enabled;
+  renderActorPanel();
+  updateAllCells();
+  updateStatus();
+}
+
+function toggleAllActors(on) {
+  STATE.actors.forEach(a => a.enabled = on);
+  renderActorPanel();
+  updateAllCells();
+  updateStatus();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COVERAGE CLICK CYCLING
+// ─────────────────────────────────────────────────────────────────────────────
+function onCellClick(id) {
+  if (STATE.mode !== 'click') return;
+  const cur = STATE.coverage[id] || 0;
+  const next = (cur + 1) % 3;
+  if (next === 0) delete STATE.coverage[id];
+  else            STATE.coverage[id] = next;
+  updateCell(id);
+  saveCoverageToStorage();
+  updateCovSummary();
+}
+
+function setMode(m) {
+  STATE.mode = m;
+  document.getElementById('mode-click').classList.toggle('active', m === 'click');
+  document.getElementById('mode-view').classList.toggle('active',  m === 'view');
+}
+
+function clearCoverage() {
+  if (!confirm('Clear all coverage markings?')) return;
+  STATE.coverage = {};
+  saveCoverageToStorage();
+  updateAllCells();
+  showToast('Coverage cleared');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOOLTIP
+// ─────────────────────────────────────────────────────────────────────────────
+function showTip(evt, id) {
+  const tip  = document.getElementById('tooltip');
+  const tech = TECH_LOOKUP[id] || { name: id, tactic: '' };
+  const enabled   = STATE.actors.filter(a => a.enabled);
+  const withTech  = enabled.filter(a => a.ttps.has(baseId(id)));
+  const covLabels = ['None','Partial','Full'];
+  const covColors = ['var(--text-muted)','var(--cov-partial)','var(--cov-full)'];
+  const cov = STATE.coverage[id] || 0;
+  const pri = STATE.ttpPriority[baseId(id)];
+  const priLabel = pri ? pri.charAt(0).toUpperCase() + pri.slice(1) : null;
+  const priColor = pri === 'critical' ? '#f78166' : pri === 'high' ? '#e3b341' : pri === 'medium' ? '#58a6ff' : null;
+  const priIcon  = pri === 'critical' ? '🔴' : pri === 'high' ? '🟡' : pri === 'medium' ? '🔵' : '';
+
+  let actorTags = withTech.map(a =>
+    `<span class="tt-actor-tag" style="background:${a.color}22;border:1px solid ${a.color}55;color:${a.color}">${a.name}</span>`
+  ).join('');
+
+  tip.innerHTML = `
+    <div class="tt-id">${id}${priLabel
+      ? ` <span style="font-size:10px;font-weight:800;color:${priColor};margin-left:6px;text-transform:uppercase">${priIcon} ${priLabel}</span>`
+      : ' <span style="font-size:10px;color:var(--text-muted);margin-left:6px">not ranked</span>'}</div>
+    <div class="tt-name">${tech.name}</div>
+    <div class="tt-cov" style="color:${covColors[cov]};margin-bottom:4px">Coverage: <strong>${covLabels[cov]}</strong></div>
+    <div class="tt-actors">
+      ${withTech.length > 0
+        ? `${withTech.length} of ${enabled.length} enabled actor${enabled.length!==1?'s':''} use this:<br>${actorTags}`
+        : `<span style="color:var(--text-muted)">No enabled actor uses this technique</span>`}
+    </div>
+    ${STATE.mode==='click' ? '<div style="font-size:10px;color:var(--text-muted);margin-top:6px">Click to cycle coverage</div>' : ''}
+  `;
+
+  const x = Math.min(evt.clientX + 14, window.innerWidth  - 260);
+  const y = Math.min(evt.clientY + 14, window.innerHeight - 160);
+  tip.style.left = x + 'px';
+  tip.style.top  = y + 'px';
+  tip.classList.add('visible');
+}
+
+function hideTip() {
+  document.getElementById('tooltip').classList.remove('visible');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STATUS / SUMMARY
+// ─────────────────────────────────────────────────────────────────────────────
+function updateStatus() {
+  const on   = STATE.actors.filter(a => a.enabled).length;
+  const crit = Object.values(STATE.ttpPriority).filter(v => v === 'critical').length;
+  const high = Object.values(STATE.ttpPriority).filter(v => v === 'high').length;
+  const med  = Object.values(STATE.ttpPriority).filter(v => v === 'medium').length;
+  const priStr = (crit + high + med) > 0
+    ? ` · 🔴 ${crit} Critical · 🟡 ${high} High · 🔵 ${med} Medium`
+    : '';
+  document.getElementById('status-text').textContent =
+    `${STATE.actors.length} actors loaded · ${on} enabled · ${Object.keys(TECH_LOOKUP).length} techniques${priStr}`;
+  updateCovSummary();
+}
+
+function updateCovSummary() {
+  const full    = Object.values(STATE.coverage).filter(v => v === 2).length;
+  const partial = Object.values(STATE.coverage).filter(v => v === 1).length;
+  const total   = Object.keys(TECH_LOOKUP).length;
+  document.getElementById('cov-summary').textContent =
+    `Coverage: 🟢 ${full} full · 🟡 ${partial} partial · ⚪ ${total - full - partial} none`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPORT — ATT&CK Navigator layer (coverage)
+// ─────────────────────────────────────────────────────────────────────────────
+function exportCoverageLayer() {
+  const techniques = [];
+
+  // Coverage markings
+  Object.entries(STATE.coverage).forEach(([id, cov]) => {
+    if (cov === 0) return;
+    const tech = TECH_LOOKUP[id];
+    const tactic = tech ? TACTICS.find(t => t.id === tech.tactic) : null;
+    techniques.push({
+      techniqueID: id,
+      tactic: tactic ? tactic.name.toLowerCase().replace(/\s+/g, '-').replace(/&/g,'and') : undefined,
+      score:  cov === 2 ? 100 : 50,
+      color:  cov === 2 ? '#3fb950' : '#e3b341',
+      comment: cov === 2 ? 'Full coverage' : 'Partial coverage',
+      enabled: true,
+      showSubtechniques: false,
+    });
+  });
+
+  const layer = {
+    name: 'My Detection Coverage',
+    versions: { attack: '14', navigator: '4.9.5', layer: '4.5' },
+    domain: 'enterprise-attack',
+    description: `Coverage layer exported from Actor TTP Tracker — ${new Date().toISOString().split('T')[0]}`,
+    techniques,
+    gradient: { colors: ['#e3b341', '#3fb950'], minValue: 50, maxValue: 100 },
+    legendItems: [
+      { label: 'Partial Coverage', color: '#e3b341' },
+      { label: 'Full Coverage',    color: '#3fb950' },
+    ],
+    hideDisabled: false,
+    selectTechniquesAcrossTactics: true,
+  };
+
+  downloadJSON(layer, 'coverage-layer.json');
+  showToast(`Exported coverage layer (${techniques.length} techniques)`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPORT — ATT&CK Navigator layer (actor heatmap)
+// ─────────────────────────────────────────────────────────────────────────────
+function exportHeatmapLayer() {
+  const enabled  = STATE.actors.filter(a => a.enabled);
+  if (enabled.length === 0) { showToast('No actors enabled — toggle actors on first'); return; }
+
+  const freq = {};
+  enabled.forEach(a => {
+    a.ttps.forEach(id => { freq[id] = (freq[id] || 0) + 1; });
+  });
+
+  const techniques = Object.entries(freq).map(([id, count]) => {
+    const score = Math.round((count / enabled.length) * 100);
+    const tech  = TECH_LOOKUP[id];
+    const tactic = tech ? TACTICS.find(t => t.id === tech.tactic) : null;
+    return {
+      techniqueID: id,
+      tactic: tactic ? tactic.name.toLowerCase().replace(/\s+/g, '-').replace(/&/g,'and') : undefined,
+      score,
+      comment: `Used by ${count}/${enabled.length} actors: ${[...enabled].filter(a=>a.ttps.has(id)).map(a=>a.name).join(', ')}`,
+      enabled: true,
+      showSubtechniques: false,
+    };
+  });
+
+  const layer = {
+    name: 'Actor TTP Heatmap',
+    versions: { attack: '14', navigator: '4.9.5', layer: '4.5' },
+    domain: 'enterprise-attack',
+    description: `Heatmap of ${enabled.length} actors — exported ${new Date().toISOString().split('T')[0]}`,
+    techniques,
+    gradient: { colors: ['#58a6ff', '#e3b341', '#f78166'], minValue: 1, maxValue: 100 },
+    legendItems: enabled.map(a => ({ label: a.name, color: a.color })),
+    hideDisabled: false,
+    selectTechniquesAcrossTactics: true,
+  };
+
+  downloadJSON(layer, 'actor-heatmap-layer.json');
+  showToast(`Exported heatmap layer (${techniques.length} techniques, ${enabled.length} actors)`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IMPORT — Navigator layer OR internal coverage JSON
+// ─────────────────────────────────────────────────────────────────────────────
+function openImport() { document.getElementById('import-modal').style.display = 'flex'; }
+function closeImport() { document.getElementById('import-modal').style.display = 'none'; }
+
+function doImport() {
+  const raw = document.getElementById('import-textarea').value.trim();
+  if (!raw) { showToast('Nothing to import'); return; }
+  try {
+    const data = JSON.parse(raw);
+
+    // Detect format: Navigator layer has "techniques" array with techniqueID
+    if (Array.isArray(data.techniques)) {
+      let imported = 0;
+      data.techniques.forEach(t => {
+        const id  = t.techniqueID;
+        if (!id) return;
+        // Map score → coverage level
+        const score = t.score || 0;
+        const color = (t.color || '').toLowerCase();
+        let cov = 0;
+        if (color === '#3fb950' || score >= 75) cov = 2;
+        else if (color === '#e3b341' || score >= 25) cov = 1;
+        if (t.enabled === false) cov = 0;
+        if (cov > 0) { STATE.coverage[id] = cov; imported++; }
+      });
+      showToast(`Imported ${imported} coverage entries from Navigator layer`);
+    }
+    // Internal format: {coverage: {T1078: 2, ...}}
+    else if (data.coverage) {
+      Object.assign(STATE.coverage, data.coverage);
+      showToast(`Imported ${Object.keys(data.coverage).length} coverage entries`);
+    } else {
+      showToast('Unrecognised format — expected Navigator layer or coverage JSON');
+      return;
+    }
+
+    saveCoverageToStorage();
+    updateAllCells();
+    closeImport();
+    document.getElementById('import-textarea').value = '';
+  } catch(e) {
+    showToast('JSON parse error: ' + e.message);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+function downloadJSON(obj, filename) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' }));
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────────────────────
+renderGrid();
+loadCoverageFromStorage();
+loadFromStorage();          // auto-load if tracker data exists
+updateAllCells();
+updateStatus();
+</script>
+</body>
+</html>
