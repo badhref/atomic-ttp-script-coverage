@@ -1,0 +1,2267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atomic Test Builder</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #1c2128;
+      --border: #30363d;
+      --accent: #58a6ff;
+      --accent2: #f78166;
+      --accent3: #3fb950;
+      --accent4: #d2a8ff;
+      --accent5: #ffa657;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --danger: #da3633;
+      --code-bg: #010409;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      animation: fadeSlideDown 0.5s ease both;
+    }
+
+    @keyframes fadeSlideDown {
+      from { opacity: 0; transform: translateY(-12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .logo {
+      width: 34px; height: 34px;
+      background: linear-gradient(135deg, var(--accent), var(--accent4));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px;
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+      animation: logoPulse 3s ease-in-out infinite;
+    }
+    @keyframes logoPulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(88,166,255,0.5); }
+      50%      { box-shadow: 0 0 0 8px rgba(88,166,255,0); }
+    }
+    .logo::after {
+      content: '';
+      position: absolute; left: 0; right: 0; height: 2px;
+      background: rgba(255,255,255,0.35);
+      animation: scanLine 2.8s ease-in-out infinite;
+    }
+    @keyframes scanLine {
+      0%   { top: -4px; opacity: 0; }
+      15%  { opacity: 0.6; }
+      85%  { opacity: 0.4; }
+      100% { top: 105%; opacity: 0; }
+    }
+
+    header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+    header p  { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+
+    /* ── Tab Navigation ── */
+    .tab-nav {
+      display: flex;
+      gap: 2px;
+      margin-left: auto;
+    }
+
+    .tab-btn {
+      padding: 7px 18px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      background: none;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.18s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tab-btn:hover:not(.active) { color: var(--text); background: rgba(255,255,255,0.05); }
+    .tab-btn.active {
+      background: var(--surface2);
+      border-color: var(--border);
+      color: var(--text);
+    }
+    .tab-btn .tab-icon { font-size: 14px; }
+
+    /* ── Pages ── */
+    .tab-page { display: none; padding: 24px 28px; }
+    .tab-page.active { display: block; }
+
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes tabPageIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .tab-page.active { animation: tabPageIn 0.3s ease both; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .btn-sm { padding: 5px 12px; font-size: 12px; }
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #000;
+      font-weight: 700;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-primary::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -75%;
+      width: 50%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+      transform: skewX(-20deg);
+      animation: btnShimmer 3s ease-in-out infinite;
+    }
+    @keyframes btnShimmer { 0% { left:-75%; } 40%,100% { left:125%; } }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .btn-secondary { background: var(--surface2); color: var(--text); }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-ghost { background: none; color: var(--text-muted); }
+    .btn-ghost:hover { color: var(--text); background: var(--surface2); }
+    .btn-danger { background: rgba(218,54,51,0.15); border-color: var(--danger); color: var(--accent2); }
+    .btn-danger:hover { background: rgba(218,54,51,0.25); }
+    .btn-success { background: rgba(63,185,80,0.15); border-color: var(--accent3); color: var(--accent3); }
+    .btn-success:hover { background: rgba(63,185,80,0.25); }
+
+    .btn-spinning { display: inline-block; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Tracker Tab ── */
+    .table-wrapper { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    thead th {
+      background: var(--surface2);
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--surface2); }
+    td { padding: 6px 8px; vertical-align: middle; }
+    td.row-num { color: var(--text-muted); font-size: 12px; width: 36px; text-align: center; user-select: none; }
+    td input {
+      width: 100%;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      padding: 7px 10px;
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.15s;
+      outline: none;
+    }
+    td input:focus { border-color: var(--accent); background: var(--bg); }
+    td input::placeholder { color: var(--text-muted); }
+    td.actor-col { width: 220px; }
+    td.ttp-col { min-width: 300px; }
+
+    .btn-del {
+      background: none; border: none; color: var(--text-muted);
+      cursor: pointer; font-size: 16px; padding: 4px 8px;
+      border-radius: 4px; transition: color 0.15s, background 0.15s; line-height: 1;
+    }
+    .btn-del:hover { color: var(--danger); background: rgba(218,54,51,0.1); }
+    .table-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+    #file-input { display: none; }
+
+    /* ── Chart section ── */
+    #charts-section { display: none; }
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
+    .chart-box {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px;
+      opacity: 0;
+      transition: box-shadow 0.2s, border-color 0.2s, transform 0.2s;
+    }
+    .chart-box:hover { box-shadow: 0 4px 24px rgba(0,0,0,0.4); border-color: #444d56; transform: translateY(-2px); }
+    .chart-box.full-width { grid-column: 1 / -1; }
+    .chart-box.revealed { animation: cardReveal 0.45s cubic-bezier(0.22,1,0.36,1) both; }
+    @keyframes cardReveal { from { opacity:0; transform:translateY(28px); } to { opacity:1; transform:translateY(0); } }
+    .chart-title { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+    .chart-subtitle { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; }
+    .chart-container { position: relative; }
+    .matrix-wrapper { overflow-x: auto; }
+    .matrix-table { font-size: 11px; border-collapse: collapse; white-space: nowrap; }
+    .matrix-table th, .matrix-table td { padding: 5px 8px; border: 1px solid var(--border); text-align: center; }
+    .matrix-table th { background: var(--surface2); color: var(--text-muted); font-weight: 600; }
+    .matrix-table th.actor-header { text-align: left; min-width: 130px; }
+    .matrix-table td.actor-name { text-align: left; color: var(--text); font-weight: 500; }
+    .matrix-table td.cell-yes { background: rgba(63,185,80,0.25); color: var(--accent3); font-weight: 700; animation: cellFade 0.25s ease both; }
+    .matrix-table td.cell-no { background: transparent; color: var(--border); }
+    @keyframes cellFade { from { opacity:0; transform:scale(0.6); } to { opacity:1; transform:scale(1); } }
+
+    /* Summary pills */
+    .summary-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+    .pill {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 20px;
+      padding: 6px 14px; font-size: 13px;
+      animation: pillPop 0.35s cubic-bezier(0.22,1,0.36,1) both;
+    }
+    .pill span { font-weight: 700; color: var(--accent); }
+    @keyframes pillPop { 0% { opacity:0; transform:scale(0.8); } 65% { transform:scale(1.06); } 100% { opacity:1; transform:scale(1); } }
+    .priority-high { color: var(--accent2); }
+    .priority-med  { color: #e3b341; }
+    .priority-low  { color: var(--accent3); }
+    @keyframes barGrow { from { width: 0 !important; } }
+    .bar-fill { animation: barGrow 0.6s cubic-bezier(0.22,1,0.36,1) both; }
+
+    /* Row animations */
+    @keyframes rowSlideIn { from { opacity:0; transform:translateX(-14px); } to { opacity:1; transform:translateX(0); } }
+    .row-enter { animation: rowSlideIn 0.22s ease both; }
+    @keyframes rowSlideOut { from { opacity:1; transform:translateX(0); max-height:48px; } to { opacity:0; transform:translateX(14px); max-height:0; padding:0; } }
+    .row-exit { animation: rowSlideOut 0.2s ease forwards; overflow: hidden; }
+
+    /* ══════════════════════════════════════════
+       BUILDER TAB
+    ══════════════════════════════════════════ */
+
+    .builder-status-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .builder-status-bar .status-badge {
+      background: rgba(63,185,80,0.15);
+      border: 1px solid rgba(63,185,80,0.3);
+      color: var(--accent3);
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .builder-status-bar .status-badge.empty {
+      background: rgba(139,148,158,0.1);
+      border-color: var(--border);
+      color: var(--text-muted);
+    }
+
+    .builder-layout {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: 20px;
+      align-items: start;
+    }
+    @media (max-width: 1100px) { .builder-layout { grid-template-columns: 1fr; } }
+
+    /* Checklist toolbar */
+    .checklist-toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+      align-items: center;
+    }
+    .search-input {
+      flex: 1; min-width: 160px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s;
+      font-family: inherit;
+    }
+    .search-input:focus { border-color: var(--accent); }
+    .search-input::placeholder { color: var(--text-muted); }
+    .tactic-filter-select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .selected-count-badge {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 4px 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .selected-count-badge.has-selection { border-color: var(--accent); color: var(--accent); }
+
+    /* Tactic groups */
+    .tactic-group {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 10px;
+      overflow: hidden;
+      transition: border-color 0.15s;
+    }
+    .tactic-group:focus-within { border-color: #444d56; }
+    .tactic-group.all-filtered { display: none; }
+
+    .tactic-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--surface2);
+      cursor: pointer;
+      user-select: none;
+      border-left: 3px solid transparent;
+      transition: border-left-color 0.2s, background 0.15s;
+    }
+    .tactic-header:hover { background: #21262d; }
+
+    .tactic-name {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      flex: 1;
+    }
+    .tactic-count { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+
+    .tactic-toggle-all {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      cursor: pointer;
+      white-space: nowrap;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .tactic-toggle-all:hover { color: var(--accent3); border-color: var(--accent3); }
+
+    .tactic-chevron {
+      font-size: 10px;
+      color: var(--text-muted);
+      transition: transform 0.25s;
+      flex-shrink: 0;
+    }
+    .tactic-group.collapsed .tactic-chevron { transform: rotate(-90deg); }
+
+    .tactic-body {
+      max-height: 700px;
+      overflow: hidden;
+      transition: max-height 0.3s ease, opacity 0.2s;
+      opacity: 1;
+      padding: 6px 0;
+    }
+    .tactic-group.collapsed .tactic-body { max-height: 0 !important; opacity: 0; padding: 0; }
+
+    /* TTP rows */
+    .ttp-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 5px 14px;
+      transition: background 0.1s;
+      cursor: pointer;
+    }
+    .ttp-row:hover { background: rgba(88,166,255,0.05); }
+    .ttp-row.filtered-out { display: none; }
+
+    .ttp-row input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 15px; height: 15px;
+      border: 2px solid var(--border);
+      border-radius: 3px;
+      background: var(--surface2);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.15s, border-color 0.15s;
+      position: relative;
+    }
+    .ttp-row input[type="checkbox"]:checked {
+      background: var(--accent3);
+      border-color: var(--accent3);
+    }
+    .ttp-row input[type="checkbox"]:checked::after {
+      content: '✓';
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: #000;
+      font-weight: 700;
+    }
+    .ttp-row input[type="checkbox"]:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    @keyframes checkPop {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(1.4); }
+      100% { transform: scale(1); }
+    }
+
+    .ttp-id {
+      font-family: 'Consolas', 'Cascadia Code', monospace;
+      font-size: 12px;
+      color: var(--accent);
+      width: 86px;
+      flex-shrink: 0;
+    }
+    .ttp-name { font-size: 12px; color: var(--text); flex: 1; line-height: 1.3; }
+
+    .ttp-row.from-tracker .ttp-id::after {
+      content: ' ●';
+      color: var(--accent3);
+      font-size: 8px;
+      vertical-align: middle;
+    }
+
+    /* Priority badges on TTP rows */
+    .priority-badge {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      padding: 2px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      border: 1px solid transparent;
+      text-transform: uppercase;
+    }
+    .priority-badge.critical {
+      background: rgba(247,129,102,0.15);
+      border-color: rgba(247,129,102,0.4);
+      color: #f78166;
+    }
+    .priority-badge.high {
+      background: rgba(227,179,65,0.15);
+      border-color: rgba(227,179,65,0.4);
+      color: #e3b341;
+    }
+    .priority-badge.medium {
+      background: rgba(88,166,255,0.12);
+      border-color: rgba(88,166,255,0.3);
+      color: #58a6ff;
+    }
+    /* dim rows not in tracker when a priority filter is active */
+    .ttp-row.priority-hidden { display: none; }
+
+    @keyframes rowFlash {
+      0%   { background: rgba(63,185,80,0.15); }
+      100% { background: transparent; }
+    }
+    .row-flash { animation: rowFlash 0.4s ease; }
+
+    /* ── Options Panel ── */
+    .options-panel {
+      position: sticky;
+      top: 72px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    @media (max-width: 1100px) { .options-panel { position: static; } }
+
+    .options-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .option-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .option-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .option-row:last-child { border-bottom: none; }
+    .option-label { color: var(--text-muted); flex-shrink: 0; }
+
+    /* Platform segmented control */
+    .platform-seg {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .platform-seg label {
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .platform-seg input[type="radio"] { display: none; }
+    .platform-seg input[type="radio"]:checked + span {
+      /* handled via JS class toggle */
+    }
+    .platform-seg label.selected {
+      background: var(--accent);
+      color: #000;
+      font-weight: 700;
+    }
+    .platform-seg label:not(.selected):hover { background: var(--surface2); color: var(--text); }
+
+    /* Phases grid */
+    .phases-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .phase-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text);
+      cursor: pointer;
+      padding: 3px 6px;
+      border-radius: 4px;
+      transition: background 0.1s;
+    }
+    .phase-label:hover { background: var(--surface2); }
+    .phase-label input[type="checkbox"] {
+      appearance: none; -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border: 2px solid var(--border);
+      border-radius: 3px;
+      background: var(--surface2);
+      cursor: pointer;
+      position: relative;
+      flex-shrink: 0;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .phase-label input[type="checkbox"]:checked { background: var(--accent); border-color: var(--accent); }
+    .phase-label input[type="checkbox"]:checked::after {
+      content: '✓';
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; color: #000; font-weight: 700;
+    }
+
+    .opt-input {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 5px 9px;
+      color: var(--text);
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s;
+      width: 100%;
+    }
+    .opt-input:focus { border-color: var(--accent); }
+    .opt-input-sm { width: 80px; text-align: right; }
+
+    /* Toggle switch */
+    .toggle-wrap { display: flex; align-items: center; gap: 8px; }
+    .toggle-switch { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-track {
+      position: absolute; inset: 0;
+      background: var(--border);
+      border-radius: 20px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .toggle-switch input:checked + .toggle-track { background: var(--accent3); }
+    .toggle-thumb {
+      position: absolute;
+      width: 14px; height: 14px;
+      top: 3px; left: 3px;
+      background: #fff;
+      border-radius: 50%;
+      pointer-events: none;
+      transition: transform 0.2s;
+    }
+    .toggle-switch input:checked ~ .toggle-thumb { transform: translateX(16px); }
+
+    /* ── Script Preview ── */
+    .preview-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+    }
+    .preview-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--text-muted);
+    }
+    .preview-actions { display: flex; gap: 6px; }
+
+    pre#script-preview {
+      background: var(--code-bg);
+      margin: 0;
+      padding: 14px 16px;
+      font-family: 'Consolas', 'Cascadia Code', 'Courier New', monospace;
+      font-size: 11.5px;
+      line-height: 1.65;
+      color: #adbac7;
+      min-height: 400px;
+      max-height: 580px;
+      overflow-y: auto;
+      white-space: pre;
+      overflow-x: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+      transition: box-shadow 0.4s;
+    }
+
+    /* Syntax-like coloring via CSS classes added by JS */
+    .sc-comment { color: #768390; }
+    .sc-keyword  { color: #f47067; }
+    .sc-string   { color: #96d0ff; }
+    .sc-param    { color: #dcbdfb; }
+    .sc-ttp      { color: var(--accent3); font-weight: 600; }
+
+    @keyframes previewPulse {
+      0%   { box-shadow: inset 0 0 0 2px rgba(88,166,255,0.5); }
+      100% { box-shadow: inset 0 0 0 2px transparent; }
+    }
+    .preview-flash { animation: previewPulse 0.5s ease; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 28px; right: 28px;
+      background: var(--accent3);
+      color: #000;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 13px;
+      z-index: 9999;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      animation: toastIn 0.25s ease;
+    }
+    @keyframes toastIn  { from { opacity:0; transform:translateY(12px) scale(0.9); } to { opacity:1; transform:translateY(0) scale(1); } }
+    @keyframes toastOut { to   { opacity:0; transform:translateY(12px) scale(0.9); } }
+    .toast.hiding { animation: toastOut 0.25s ease forwards; }
+
+    /* ── No-selection placeholder ── */
+    .empty-preview {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 280px;
+      gap: 10px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    .empty-preview .icon { font-size: 40px; opacity: 0.3; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⚛</div>
+  <div>
+    <h1>Atomic Test Builder</h1>
+    <p>Actor TTP tracking · Coverage analysis · Atomic Red Team script generation</p>
+  </div>
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="tracker" onclick="switchTab('tracker')">
+      <span class="tab-icon">📊</span> TTP Tracker
+    </button>
+    <button class="tab-btn" data-tab="builder" onclick="switchTab('builder')">
+      <span class="tab-icon">⚡</span> Script Builder
+    </button>
+  </nav>
+</header>
+
+<!-- ══════════════════ TAB 1: TRACKER ══════════════════ -->
+<div id="tab-tracker" class="tab-page active">
+
+  <div class="card">
+    <div class="card-title">🎯 Threat Actor Data</div>
+    <div class="table-wrapper">
+      <table id="actor-table">
+        <thead>
+          <tr>
+            <th style="width:36px">#</th>
+            <th>Actor / Group</th>
+            <th>MITRE TTPs (comma-separated, e.g. T1059, T1078.001)</th>
+            <th style="width:44px"></th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+    <div class="table-actions">
+      <button class="btn btn-secondary" onclick="addRow()">+ Add Row</button>
+      <button class="btn btn-primary" onclick="analyze()">▶ Analyze Coverage</button>
+      <button class="btn btn-ghost" onclick="clearAll()">Clear All</button>
+      <button class="btn btn-ghost" onclick="loadSample()">Load Sample Data</button>
+      <button class="btn btn-ghost" onclick="exportCSV()">↓ Export CSV</button>
+      <button class="btn btn-ghost" onclick="pushToHeatmap();window.open('mitre-heatmap.html','_blank')" title="Push data to localStorage and open heatmap">🗺 Open Heatmap</button>
+      <label class="btn btn-ghost" style="cursor:pointer">
+        ↑ Import CSV <input type="file" id="file-input" accept=".csv" onchange="importCSV(event)">
+      </label>
+      <button class="btn btn-success" onclick="switchTab('builder')">⚡ Build Script →</button>
+    </div>
+  </div>
+
+  <div id="charts-section">
+    <div class="summary-row" id="summary-row"></div>
+    <div class="charts-grid">
+
+      <div class="chart-box full-width">
+        <div class="chart-title">TTP Frequency — All Techniques &amp; Sub-Techniques</div>
+        <div class="chart-subtitle">Higher bar = more actors using this technique. Max = total actor count. Includes sub-techniques (e.g. T1059.001)</div>
+        <div class="chart-container" style="height:300px"><canvas id="ttp-freq-chart"></canvas></div>
+      </div>
+
+      <div class="chart-box full-width">
+        <div class="chart-title">Base Technique Frequency — Sub-Techniques Excluded</div>
+        <div class="chart-subtitle">Sub-techniques rolled up to parent (T1059.001 → T1059). Each actor counted once per base technique.</div>
+        <div class="chart-container" style="height:300px"><canvas id="base-ttp-freq-chart"></canvas></div>
+      </div>
+
+      <div class="chart-box">
+        <div class="chart-title">Actor Coverage — Fewest TTPs First</div>
+        <div class="chart-subtitle">Actors with fewer tracked TTPs = largest blind spots</div>
+        <div class="chart-container" style="height:300px"><canvas id="actor-coverage-chart"></canvas></div>
+      </div>
+
+      <div class="chart-box">
+        <div class="chart-title">TTP Distribution — Unique vs Shared</div>
+        <div class="chart-subtitle">Techniques used by only one actor vs shared across multiple</div>
+        <div class="chart-container" style="height:300px"><canvas id="ttp-distribution-chart"></canvas></div>
+      </div>
+
+      <div class="chart-box full-width">
+        <div class="chart-title">Actor × TTP Coverage Matrix</div>
+        <div class="chart-subtitle">✓ = actor uses this TTP &nbsp;|&nbsp; Scroll horizontally for all TTPs</div>
+        <div class="matrix-wrapper"><table class="matrix-table" id="matrix-table"></table></div>
+      </div>
+
+      <div class="chart-box full-width">
+        <div class="chart-title">Red Team Prioritization — All TTPs</div>
+        <div class="chart-subtitle">TTPs ranked by frequency &amp; actor breadth</div>
+        <div id="priority-list"></div>
+      </div>
+
+      <div class="chart-box full-width">
+        <div class="chart-title">Red Team Prioritization — Base Techniques Only</div>
+        <div class="chart-subtitle">Sub-techniques excluded — identify which technique families need the most coverage</div>
+        <div id="base-priority-list"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════ TAB 2: BUILDER ══════════════════ -->
+<div id="tab-builder" class="tab-page">
+
+  <div class="builder-status-bar">
+    <span id="builder-status-text">No tracker data loaded yet.</span>
+    <span id="builder-status-badge" class="status-badge empty">0 TTPs</span>
+    <button class="btn btn-ghost btn-sm" onclick="syncBuilderFromTracker(true)" style="margin-left:4px">↻ Refresh from Tracker</button>
+    <span style="flex:1"></span>
+    <span style="font-size:12px; color:var(--text-muted)">Green dot (●) = in tracker data</span>
+  </div>
+
+  <div class="builder-layout">
+
+    <!-- LEFT: Checklist -->
+    <div class="checklist-panel">
+      <div class="checklist-toolbar">
+        <input id="ttp-search" class="search-input" placeholder="🔍  Search technique ID or name…" oninput="onSearch(this.value)">
+        <select id="tactic-filter" class="tactic-filter-select" onchange="onTacticFilter(this.value)">
+          <option value="all">All Tactics</option>
+        </select>
+        <select id="priority-filter" class="tactic-filter-select" onchange="onPriorityFilter(this.value)" title="Filter by priority rank from tracker data">
+          <option value="all">All Priorities</option>
+          <option value="critical">🔴 Critical only</option>
+          <option value="high">🟡 High only</option>
+          <option value="medium">🔵 Medium only</option>
+          <option value="ranked">Ranked (any)</option>
+        </select>
+      </div>
+      <div class="checklist-toolbar" style="margin-top:-6px; margin-bottom:14px;">
+        <span style="font-size:12px; color:var(--text-muted); flex-shrink:0">Select by priority:</span>
+        <button class="btn btn-sm" style="background:rgba(247,129,102,0.15);border-color:rgba(247,129,102,0.4);color:#f78166;" onclick="selectByPriority('critical')">🔴 Critical</button>
+        <button class="btn btn-sm" style="background:rgba(227,179,65,0.15);border-color:rgba(227,179,65,0.4);color:#e3b341;"  onclick="selectByPriority('high')">🟡 High</button>
+        <button class="btn btn-sm" style="background:rgba(88,166,255,0.12);border-color:rgba(88,166,255,0.3);color:#58a6ff;"  onclick="selectByPriority('medium')">🔵 Medium</button>
+        <button class="btn btn-ghost btn-sm" onclick="selectByPriority('critical','high')">🔴+🟡 Crit &amp; High</button>
+        <button class="btn btn-ghost btn-sm" onclick="selectAll()">All</button>
+        <button class="btn btn-ghost btn-sm" onclick="deselectAll()">None</button>
+        <span style="flex:1"></span>
+        <span id="selected-count-badge" class="selected-count-badge">0 selected</span>
+      </div>
+      <div id="checklist-container"></div>
+    </div>
+
+    <!-- RIGHT: Options + Preview -->
+    <div class="options-panel">
+
+      <div class="options-card">
+        <div class="option-section-title">⚙ Script Options</div>
+
+        <!-- Platform -->
+        <div class="option-row">
+          <span class="option-label">Platform</span>
+          <div class="platform-seg" id="platform-seg">
+            <label id="lbl-ps" class="selected" onclick="onPlatformChange('powershell')">
+              <input type="radio" name="platform" value="powershell" checked> <span>PowerShell</span>
+            </label>
+            <label id="lbl-bash" onclick="onPlatformChange('bash')">
+              <input type="radio" name="platform" value="bash"> <span>Bash</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Phases -->
+        <div class="option-row" style="flex-direction:column; align-items:flex-start; gap:8px;">
+          <span class="option-label">Phases to Include</span>
+          <div class="phases-grid" style="width:100%">
+            <label class="phase-label">
+              <input type="checkbox" id="ph-checkprereqs" checked onchange="updatePreview()"> CheckPrereqs
+            </label>
+            <label class="phase-label">
+              <input type="checkbox" id="ph-getprereqs" onchange="updatePreview()"> GetPrereqs
+            </label>
+            <label class="phase-label">
+              <input type="checkbox" id="ph-run" checked onchange="updatePreview()"> Run Tests
+            </label>
+            <label class="phase-label">
+              <input type="checkbox" id="ph-cleanup" onchange="updatePreview()"> Cleanup
+            </label>
+          </div>
+        </div>
+
+        <!-- Timeout -->
+        <div class="option-row">
+          <span class="option-label">Timeout (sec)</span>
+          <input type="number" id="opt-timeout" class="opt-input opt-input-sm" value="120" min="1" max="7200" oninput="updatePreview()">
+        </div>
+
+        <!-- Atomics Path -->
+        <div class="option-row" style="flex-direction:column; align-items:flex-start; gap:6px;">
+          <span class="option-label">Atomics / Module Path <span style="font-size:11px">(optional)</span></span>
+          <input type="text" id="opt-atomics-path" class="opt-input" placeholder="e.g. C:\AtomicRedTeam\atomics" oninput="updatePreview()">
+        </div>
+
+        <!-- Test numbers -->
+        <div class="option-row" style="flex-direction:column; align-items:flex-start; gap:6px;">
+          <span class="option-label">Test Numbers <span style="font-size:11px">(blank = All)</span></span>
+          <input type="text" id="opt-test-nums" class="opt-input" placeholder="e.g. 1,2  or leave blank for All" oninput="updatePreview()">
+        </div>
+
+        <!-- Log output -->
+        <div class="option-row">
+          <span class="option-label">Log Output</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="opt-log" checked onchange="updatePreview()">
+            <span class="toggle-track"></span>
+            <span class="toggle-thumb"></span>
+          </label>
+        </div>
+
+      </div>
+
+      <!-- Script Preview -->
+      <div class="preview-card">
+        <div class="preview-header">
+          <span class="preview-title" id="preview-title">Script Preview · PowerShell</span>
+          <div class="preview-actions">
+            <button class="btn btn-ghost btn-sm" onclick="copyScript()">📋 Copy</button>
+            <button class="btn btn-primary btn-sm" id="download-btn" onclick="downloadScript()">↓ Download .ps1</button>
+          </div>
+        </div>
+        <pre id="script-preview"><span class="sc-comment"># Select TTPs from the checklist on the left
+# to generate your Atomic Red Team script.</span></pre>
+      </div>
+
+    </div><!-- /options-panel -->
+  </div><!-- /builder-layout -->
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+//  MITRE ATT&CK DATA
+// ════════════════════════════════════════════════════════════
+
+const TACTIC_MAP = [
+  { id:'TA0043', name:'Reconnaissance',       color:'#8957e5',
+    techniques:[
+      {id:'T1595',     name:'Active Scanning'},
+      {id:'T1595.001', name:'Active Scanning: Scanning IP Blocks'},
+      {id:'T1595.002', name:'Active Scanning: Vulnerability Scanning'},
+      {id:'T1592',     name:'Gather Victim Host Information'},
+      {id:'T1589',     name:'Gather Victim Identity Information'},
+      {id:'T1590',     name:'Gather Victim Network Information'},
+      {id:'T1591',     name:'Gather Victim Org Information'},
+      {id:'T1598',     name:'Phishing for Information'},
+    ]
+  },
+  { id:'TA0042', name:'Resource Development', color:'#6e40c9',
+    techniques:[
+      {id:'T1583',     name:'Acquire Infrastructure'},
+      {id:'T1584',     name:'Compromise Infrastructure'},
+      {id:'T1587',     name:'Develop Capabilities'},
+      {id:'T1588',     name:'Obtain Capabilities'},
+      {id:'T1585',     name:'Establish Accounts'},
+    ]
+  },
+  { id:'TA0001', name:'Initial Access',       color:'#f78166',
+    techniques:[
+      {id:'T1566',     name:'Phishing'},
+      {id:'T1566.001', name:'Phishing: Spearphishing Attachment'},
+      {id:'T1566.002', name:'Phishing: Spearphishing Link'},
+      {id:'T1566.004', name:'Phishing: Spearphishing via Service'},
+      {id:'T1190',     name:'Exploit Public-Facing Application'},
+      {id:'T1133',     name:'External Remote Services'},
+      {id:'T1078',     name:'Valid Accounts'},
+      {id:'T1078.001', name:'Valid Accounts: Default Accounts'},
+      {id:'T1078.002', name:'Valid Accounts: Domain Accounts'},
+      {id:'T1078.003', name:'Valid Accounts: Local Accounts'},
+      {id:'T1078.004', name:'Valid Accounts: Cloud Accounts'},
+      {id:'T1091',     name:'Replication Through Removable Media'},
+      {id:'T1195',     name:'Supply Chain Compromise'},
+      {id:'T1199',     name:'Trusted Relationship'},
+    ]
+  },
+  { id:'TA0002', name:'Execution',            color:'#e3b341',
+    techniques:[
+      {id:'T1059',     name:'Command and Scripting Interpreter'},
+      {id:'T1059.001', name:'Execution: PowerShell'},
+      {id:'T1059.002', name:'Execution: AppleScript'},
+      {id:'T1059.003', name:'Execution: Windows Command Shell'},
+      {id:'T1059.004', name:'Execution: Unix Shell'},
+      {id:'T1059.005', name:'Execution: Visual Basic'},
+      {id:'T1059.006', name:'Execution: Python'},
+      {id:'T1059.007', name:'Execution: JavaScript'},
+      {id:'T1204',     name:'User Execution'},
+      {id:'T1204.001', name:'User Execution: Malicious Link'},
+      {id:'T1204.002', name:'User Execution: Malicious File'},
+      {id:'T1047',     name:'Windows Management Instrumentation'},
+      {id:'T1053',     name:'Scheduled Task/Job'},
+      {id:'T1053.005', name:'Scheduled Task: Scheduled Task (Windows)'},
+      {id:'T1053.003', name:'Scheduled Task: Cron'},
+      {id:'T1569',     name:'System Services'},
+      {id:'T1569.002', name:'System Services: Service Execution'},
+    ]
+  },
+  { id:'TA0003', name:'Persistence',          color:'#58a6ff',
+    techniques:[
+      {id:'T1547',     name:'Boot or Logon Autostart Execution'},
+      {id:'T1547.001', name:'Persistence: Registry Run Keys / Startup Folder'},
+      {id:'T1547.004', name:'Persistence: Winlogon Helper DLL'},
+      {id:'T1543',     name:'Create or Modify System Process'},
+      {id:'T1543.003', name:'Persistence: Windows Service'},
+      {id:'T1098',     name:'Account Manipulation'},
+      {id:'T1098.001', name:'Account Manipulation: Additional Cloud Credentials'},
+      {id:'T1136',     name:'Create Account'},
+      {id:'T1136.001', name:'Create Account: Local Account'},
+      {id:'T1136.002', name:'Create Account: Domain Account'},
+      {id:'T1505',     name:'Server Software Component'},
+      {id:'T1505.003', name:'Persistence: Web Shell'},
+      {id:'T1574',     name:'Hijack Execution Flow'},
+      {id:'T1574.002', name:'Hijack Execution Flow: DLL Side-Loading'},
+    ]
+  },
+  { id:'TA0004', name:'Privilege Escalation', color:'#d2a8ff',
+    techniques:[
+      {id:'T1548',     name:'Abuse Elevation Control Mechanism'},
+      {id:'T1548.002', name:'PrivEsc: Bypass UAC'},
+      {id:'T1548.003', name:'PrivEsc: Sudo and Sudo Caching'},
+      {id:'T1134',     name:'Access Token Manipulation'},
+      {id:'T1134.001', name:'Token Manipulation: Token Impersonation/Theft'},
+      {id:'T1134.002', name:'Token Manipulation: Create Process with Token'},
+      {id:'T1068',     name:'Exploitation for Privilege Escalation'},
+      {id:'T1055',     name:'Process Injection'},
+      {id:'T1055.001', name:'Process Injection: DLL Injection'},
+      {id:'T1055.012', name:'Process Injection: Process Hollowing'},
+      {id:'T1611',     name:'Escape to Host (Container)'},
+    ]
+  },
+  { id:'TA0005', name:'Defense Evasion',      color:'#3fb950',
+    techniques:[
+      {id:'T1027',     name:'Obfuscated Files or Information'},
+      {id:'T1027.001', name:'Obfuscation: Binary Padding'},
+      {id:'T1027.009', name:'Obfuscation: Embedded Payloads'},
+      {id:'T1027.010', name:'Obfuscation: Command Obfuscation'},
+      {id:'T1036',     name:'Masquerading'},
+      {id:'T1036.005', name:'Masquerading: Match Legitimate Name or Location'},
+      {id:'T1070',     name:'Indicator Removal'},
+      {id:'T1070.001', name:'Indicator Removal: Clear Windows Event Logs'},
+      {id:'T1070.003', name:'Indicator Removal: Clear Command History'},
+      {id:'T1070.004', name:'Indicator Removal: File Deletion'},
+      {id:'T1562',     name:'Impair Defenses'},
+      {id:'T1562.001', name:'Impair Defenses: Disable or Modify Tools (AV/EDR)'},
+      {id:'T1112',     name:'Modify Registry'},
+      {id:'T1218',     name:'System Binary Proxy Execution'},
+      {id:'T1218.011', name:'LOLBin: Rundll32'},
+      {id:'T1218.010', name:'LOLBin: Regsvr32'},
+      {id:'T1140',     name:'Deobfuscate / Decode Files or Information'},
+      {id:'T1055',     name:'Process Injection'},
+    ]
+  },
+  { id:'TA0006', name:'Credential Access',    color:'#ffa657',
+    techniques:[
+      {id:'T1003',     name:'OS Credential Dumping'},
+      {id:'T1003.001', name:'Credential Dumping: LSASS Memory'},
+      {id:'T1003.002', name:'Credential Dumping: SAM'},
+      {id:'T1003.003', name:'Credential Dumping: NTDS'},
+      {id:'T1003.008', name:'Credential Dumping: /etc/passwd and /etc/shadow'},
+      {id:'T1110',     name:'Brute Force'},
+      {id:'T1110.001', name:'Brute Force: Password Guessing'},
+      {id:'T1110.003', name:'Brute Force: Password Spraying'},
+      {id:'T1555',     name:'Credentials from Password Stores'},
+      {id:'T1555.003', name:'Credentials from Browsers'},
+      {id:'T1558',     name:'Steal or Forge Kerberos Tickets'},
+      {id:'T1558.003', name:'Kerberoasting'},
+      {id:'T1558.004', name:'AS-REP Roasting'},
+      {id:'T1621',     name:'MFA Request Generation (MFA Fatigue)'},
+      {id:'T1539',     name:'Steal Web Session Cookie'},
+      {id:'T1552',     name:'Unsecured Credentials'},
+      {id:'T1552.001', name:'Unsecured Credentials: Credentials in Files'},
+    ]
+  },
+  { id:'TA0007', name:'Discovery',            color:'#79c0ff',
+    techniques:[
+      {id:'T1082',     name:'System Information Discovery'},
+      {id:'T1083',     name:'File and Directory Discovery'},
+      {id:'T1016',     name:'System Network Configuration Discovery'},
+      {id:'T1018',     name:'Remote System Discovery'},
+      {id:'T1057',     name:'Process Discovery'},
+      {id:'T1069',     name:'Permission Groups Discovery'},
+      {id:'T1069.002', name:'Permission Groups: Domain Groups'},
+      {id:'T1087',     name:'Account Discovery'},
+      {id:'T1087.002', name:'Account Discovery: Domain Account'},
+      {id:'T1135',     name:'Network Share Discovery'},
+      {id:'T1046',     name:'Network Service Discovery'},
+      {id:'T1201',     name:'Password Policy Discovery'},
+      {id:'T1482',     name:'Domain Trust Discovery'},
+      {id:'T1033',     name:'System Owner / User Discovery'},
+      {id:'T1124',     name:'System Time Discovery'},
+    ]
+  },
+  { id:'TA0008', name:'Lateral Movement',     color:'#56d364',
+    techniques:[
+      {id:'T1021',     name:'Remote Services'},
+      {id:'T1021.001', name:'Remote Services: Remote Desktop Protocol (RDP)'},
+      {id:'T1021.002', name:'Remote Services: SMB / Windows Admin Shares'},
+      {id:'T1021.004', name:'Remote Services: SSH'},
+      {id:'T1021.006', name:'Remote Services: Windows Remote Management (WinRM)'},
+      {id:'T1570',     name:'Lateral Tool Transfer'},
+      {id:'T1550',     name:'Use Alternate Authentication Material'},
+      {id:'T1550.002', name:'Pass the Hash'},
+      {id:'T1550.003', name:'Pass the Ticket'},
+      {id:'T1534',     name:'Internal Spearphishing'},
+    ]
+  },
+  { id:'TA0009', name:'Collection',           color:'#cae8ff',
+    techniques:[
+      {id:'T1560',     name:'Archive Collected Data'},
+      {id:'T1560.001', name:'Archive: Archive via Utility'},
+      {id:'T1074',     name:'Data Staged'},
+      {id:'T1074.001', name:'Data Staged: Local Data Staging'},
+      {id:'T1113',     name:'Screen Capture'},
+      {id:'T1056',     name:'Input Capture'},
+      {id:'T1056.001', name:'Input Capture: Keylogging'},
+      {id:'T1119',     name:'Automated Collection'},
+      {id:'T1530',     name:'Data from Cloud Storage'},
+      {id:'T1005',     name:'Data from Local System'},
+    ]
+  },
+  { id:'TA0011', name:'Command and Control',  color:'#f0883e',
+    techniques:[
+      {id:'T1071',     name:'Application Layer Protocol'},
+      {id:'T1071.001', name:'C2: Web Protocols (HTTP/HTTPS)'},
+      {id:'T1071.004', name:'C2: DNS'},
+      {id:'T1105',     name:'Ingress Tool Transfer'},
+      {id:'T1095',     name:'Non-Application Layer Protocol'},
+      {id:'T1572',     name:'Protocol Tunneling'},
+      {id:'T1090',     name:'Proxy'},
+      {id:'T1090.003', name:'Proxy: Multi-hop Proxy'},
+      {id:'T1132',     name:'Data Encoding'},
+      {id:'T1573',     name:'Encrypted Channel'},
+      {id:'T1573.001', name:'Encrypted Channel: Symmetric Cryptography'},
+      {id:'T1219',     name:'Remote Access Software'},
+    ]
+  },
+  { id:'TA0010', name:'Exfiltration',         color:'#ff7b72',
+    techniques:[
+      {id:'T1041',     name:'Exfiltration Over C2 Channel'},
+      {id:'T1048',     name:'Exfiltration Over Alternative Protocol'},
+      {id:'T1048.003', name:'Exfiltration: Unencrypted/Obfuscated Non-C2 Protocol'},
+      {id:'T1567',     name:'Exfiltration Over Web Service'},
+      {id:'T1567.002', name:'Exfiltration to Cloud Storage'},
+      {id:'T1537',     name:'Transfer Data to Cloud Account'},
+      {id:'T1029',     name:'Scheduled Transfer'},
+    ]
+  },
+  { id:'TA0040', name:'Impact',               color:'#ffa198',
+    techniques:[
+      {id:'T1486',     name:'Data Encrypted for Impact (Ransomware)'},
+      {id:'T1490',     name:'Inhibit System Recovery'},
+      {id:'T1489',     name:'Service Stop'},
+      {id:'T1485',     name:'Data Destruction'},
+      {id:'T1491',     name:'Defacement'},
+      {id:'T1499',     name:'Endpoint Denial of Service'},
+      {id:'T1531',     name:'Account Access Removal'},
+      {id:'T1561',     name:'Disk Wipe'},
+      {id:'T1565',     name:'Data Manipulation'},
+    ]
+  },
+];
+
+// Flat lookup: id → { name, tacticId, tacticName, tacticColor }
+const TECHNIQUE_LOOKUP = {};
+TACTIC_MAP.forEach(tac => {
+  tac.techniques.forEach(t => {
+    if (!TECHNIQUE_LOOKUP[t.id]) {
+      TECHNIQUE_LOOKUP[t.id] = { name: t.name, tacticId: tac.id, tacticName: tac.name, tacticColor: tac.color };
+    }
+  });
+});
+
+// ════════════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════════════
+
+let rowCount = 0;
+let charts   = {};
+const STATE = {
+  trackerTtps:  new Set(),   // union of TTPs from Tab 1
+  checked:      new Set(),   // selected TTPs in builder
+  ttpPriority:  {},          // id → 'critical' | 'high' | 'medium'
+  totalActors:  0,
+  platform:     'powershell',
+  builderInit:  false,
+  priorityFilter: 'all',     // active priority filter
+};
+
+// ════════════════════════════════════════════════════════════
+//  TAB SWITCHING
+// ════════════════════════════════════════════════════════════
+
+function switchTab(id) {
+  document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  document.querySelector(`.tab-btn[data-tab="${id}"]`).classList.add('active');
+
+  if (id === 'builder') {
+    if (!STATE.builderInit) {
+      buildChecklistDOM();
+      STATE.builderInit = true;
+    }
+    syncBuilderFromTracker(false);
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  TRACKER — ROW MANAGEMENT
+// ════════════════════════════════════════════════════════════
+
+function addRow(actor = '', ttps = '') {
+  rowCount++;
+  const tbody = document.getElementById('table-body');
+  const tr = document.createElement('tr');
+  tr.id = `row-${rowCount}`;
+  tr.className = 'row-enter';
+  tr.innerHTML = `
+    <td class="row-num">${tbody.rows.length + 1}</td>
+    <td class="actor-col"><input type="text" placeholder="e.g. APT29" value="${escHtml(actor)}"></td>
+    <td class="ttp-col"><input type="text" placeholder="T1059, T1078, T1566.001" value="${escHtml(ttps)}"></td>
+    <td><button class="btn-del" onclick="deleteRow('row-${rowCount}')" title="Delete row">×</button></td>
+  `;
+  tbody.appendChild(tr);
+  renumberRows();
+}
+
+function deleteRow(id) {
+  const tr = document.getElementById(id);
+  if (!tr) return;
+  tr.classList.add('row-exit');
+  tr.addEventListener('animationend', () => { tr.remove(); renumberRows(); }, { once: true });
+}
+
+function renumberRows() {
+  document.querySelectorAll('#table-body tr .row-num').forEach((el, i) => { el.textContent = i + 1; });
+}
+
+function clearAll() {
+  document.getElementById('table-body').innerHTML = '';
+  rowCount = 0;
+  document.getElementById('charts-section').style.display = 'none';
+  addRow(); addRow(); addRow();
+}
+
+// ════════════════════════════════════════════════════════════
+//  TRACKER — DATA EXTRACTION
+// ════════════════════════════════════════════════════════════
+
+function getData() {
+  const rows = [];
+  document.querySelectorAll('#table-body tr').forEach(tr => {
+    const inputs = tr.querySelectorAll('input');
+    const actor  = inputs[0]?.value.trim();
+    const raw    = inputs[1]?.value || '';
+    if (!actor) return;
+    const ttps = [...new Set(
+      raw.split(',').map(t => t.trim().toUpperCase()).filter(t => t.length > 0)
+    )];
+    rows.push({ actor, ttps });
+  });
+  return rows;
+}
+
+// ════════════════════════════════════════════════════════════
+//  TRACKER — ANALYSIS
+// ════════════════════════════════════════════════════════════
+
+// Push current actor data to localStorage so heatmap can sync
+function pushToHeatmap() {
+  const data = getData();
+  if (data.length > 0) {
+    localStorage.setItem('ttp-tracker-actors', JSON.stringify(data));
+  }
+}
+
+function analyze() {
+  const data = getData();
+  if (!data.length) { alert('Add at least one actor with TTPs.'); return; }
+
+  pushToHeatmap();   // keep heatmap in sync
+
+  const btn = document.querySelector('#tab-tracker .btn-primary');
+  const origHTML = btn.innerHTML;
+  btn.innerHTML = '<span class="btn-spinning">⟳</span> Analyzing…';
+  btn.disabled  = true;
+
+  setTimeout(() => {
+    // --- Frequency map (deduplicated per actor) ---
+    const ttpFreq   = {};
+    const ttpActors = {};
+    data.forEach(({ actor, ttps }) => {
+      new Set(ttps).forEach(t => {
+        ttpFreq[t] = (ttpFreq[t] || 0) + 1;
+        if (!ttpActors[t]) ttpActors[t] = new Set();
+        ttpActors[t].add(actor);
+      });
+    });
+
+    const sortedTtps = Object.entries(ttpFreq).sort((a,b) => b[1]-a[1]).map(([t]) => t);
+
+    // --- Base technique map ---
+    const baseTtpFreq   = {};
+    const baseTtpActors = {};
+    data.forEach(({ actor, ttps }) => {
+      const seenBase = new Set();
+      new Set(ttps).forEach(t => {
+        const base = t.split('.')[0];
+        if (seenBase.has(base)) return;
+        seenBase.add(base);
+        baseTtpFreq[base] = (baseTtpFreq[base] || 0) + 1;
+        if (!baseTtpActors[base]) baseTtpActors[base] = new Set();
+        baseTtpActors[base].add(actor);
+      });
+    });
+    const sortedBaseTtps = Object.entries(baseTtpFreq).sort((a,b) => b[1]-a[1]).map(([t]) => t);
+
+    const sortedActors = [...data].sort((a,b) => a.ttps.length - b.ttps.length);
+
+    // Reset reveal state
+    document.querySelectorAll('.chart-box').forEach(el => { el.classList.remove('revealed'); el.style.opacity = '0'; });
+
+    renderSummary(data, ttpFreq, sortedTtps);
+    renderTtpFreqChart(sortedTtps, ttpFreq, data.length);
+    renderBaseTtpFreqChart(sortedBaseTtps, baseTtpFreq, data.length);
+    renderActorCoverageChart(sortedActors);
+    renderDistributionChart(ttpFreq, data.length);
+    renderMatrix(sortedActors, sortedTtps);
+    renderPriorityList(sortedTtps, ttpFreq, ttpActors, data.length);
+    renderBasePriorityList(sortedBaseTtps, baseTtpFreq, baseTtpActors, data.length);
+
+    const section = document.getElementById('charts-section');
+    section.style.display = 'block';
+
+    document.querySelectorAll('.chart-box').forEach((card, i) => {
+      setTimeout(() => { card.style.animationDelay = '0s'; card.classList.add('revealed'); }, i * 90);
+    });
+
+    section.scrollIntoView({ behavior: 'smooth' });
+    btn.innerHTML = origHTML;
+    btn.disabled  = false;
+
+    // Auto-sync builder
+    syncBuilderFromTracker(false);
+  }, 120);
+}
+
+// ════════════════════════════════════════════════════════════
+//  TRACKER — SUMMARY PILLS
+// ════════════════════════════════════════════════════════════
+
+function countUp(el, target, isFloat = false, dur = 700) {
+  const t0 = performance.now();
+  (function step(now) {
+    const p = Math.min((now - t0) / dur, 1);
+    const e = 1 - Math.pow(1-p, 3);
+    el.textContent = isFloat ? (target * e).toFixed(1) : Math.round(target * e);
+    if (p < 1) requestAnimationFrame(step);
+  })(t0);
+}
+
+function renderSummary(data, ttpFreq, sortedTtps) {
+  const total     = data.length;
+  const unique    = sortedTtps.length;
+  const instances = Object.values(ttpFreq).reduce((s,v) => s+v, 0);
+  const avg       = instances / total;
+  const row = document.getElementById('summary-row');
+  row.innerHTML = `
+    <div class="pill" style="animation-delay:0.05s">Actors tracked: <span id="p-actors">0</span></div>
+    <div class="pill" style="animation-delay:0.12s">Unique TTPs: <span id="p-ttps">0</span></div>
+    <div class="pill" style="animation-delay:0.19s">Avg TTPs / actor: <span id="p-avg">0.0</span></div>
+    <div class="pill" style="animation-delay:0.26s">Most common TTP: <span>${sortedTtps[0] || '—'}</span></div>
+    <div class="pill" style="animation-delay:0.33s">Total TTP instances: <span id="p-total">0</span></div>
+  `;
+  setTimeout(() => {
+    countUp(document.getElementById('p-actors'), total);
+    countUp(document.getElementById('p-ttps'),   unique);
+    countUp(document.getElementById('p-avg'),    avg, true);
+    countUp(document.getElementById('p-total'),  instances);
+  }, 200);
+}
+
+// ════════════════════════════════════════════════════════════
+//  TRACKER — CHARTS
+// ════════════════════════════════════════════════════════════
+
+function buildFreqChartConfig(labels, freq, totalActors) {
+  const colors = labels.map(t => {
+    const v = freq[t] / totalActors;
+    if (v >= 0.75) return 'rgba(247,129,102,0.85)';
+    if (v >= 0.5)  return 'rgba(227,179,65,0.85)';
+    return 'rgba(88,166,255,0.75)';
+  });
+  return {
+    type: 'bar',
+    data: { labels, datasets: [{ label:'Actor count', data: labels.map(t=>freq[t]), backgroundColor: colors, borderRadius: 4 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend:{ display:false }, tooltip:{ callbacks:{ label: ctx => ` Used by ${ctx.raw} of ${totalActors} actor(s)` } } },
+      scales: {
+        x: { ticks:{ color:'#8b949e', maxRotation:60 }, grid:{ color:'#30363d' } },
+        y: { ticks:{ color:'#8b949e', stepSize:1, precision:0 }, grid:{ color:'#30363d' }, beginAtZero:true, max: totalActors,
+             title:{ display:true, text:'# Actors', color:'#8b949e', font:{ size:11 } } }
+      }
+    }
+  };
+}
+
+function renderTtpFreqChart(sortedTtps, ttpFreq, n) {
+  destroyChart('ttp-freq-chart');
+  charts['ttp-freq-chart'] = new Chart(document.getElementById('ttp-freq-chart'), buildFreqChartConfig(sortedTtps, ttpFreq, n));
+}
+
+function renderBaseTtpFreqChart(sortedBase, baseFreq, n) {
+  destroyChart('base-ttp-freq-chart');
+  charts['base-ttp-freq-chart'] = new Chart(document.getElementById('base-ttp-freq-chart'), buildFreqChartConfig(sortedBase, baseFreq, n));
+}
+
+function renderActorCoverageChart(sortedActors) {
+  destroyChart('actor-coverage-chart');
+  const max = Math.max(...sortedActors.map(a => a.ttps.length));
+  const colors = sortedActors.map(a => {
+    const v = a.ttps.length / max;
+    if (v <= 0.33) return 'rgba(247,129,102,0.85)';
+    if (v <= 0.66) return 'rgba(227,179,65,0.85)';
+    return 'rgba(63,185,80,0.75)';
+  });
+  charts['actor-coverage-chart'] = new Chart(document.getElementById('actor-coverage-chart'), {
+    type: 'bar',
+    data: { labels: sortedActors.map(a=>a.actor), datasets:[{ label:'TTP count', data: sortedActors.map(a=>a.ttps.length), backgroundColor: colors, borderRadius:4 }] },
+    options: {
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ` ${ctx.raw} TTP(s) tracked` } } },
+      scales: {
+        x:{ ticks:{color:'#8b949e',stepSize:1}, grid:{color:'#30363d'}, beginAtZero:true },
+        y:{ ticks:{color:'#e6edf3'}, grid:{color:'#30363d'} }
+      }
+    }
+  });
+}
+
+function renderDistributionChart(ttpFreq, n) {
+  destroyChart('ttp-distribution-chart');
+  const u  = Object.values(ttpFreq).filter(v=>v===1).length;
+  const s2 = Object.values(ttpFreq).filter(v=>v===2).length;
+  const s3 = Object.values(ttpFreq).filter(v=>v>=3).length;
+  charts['ttp-distribution-chart'] = new Chart(document.getElementById('ttp-distribution-chart'), {
+    type:'doughnut',
+    data:{ labels:['1 actor only','2 actors','3+ actors'], datasets:[{ data:[u,s2,s3], backgroundColor:['rgba(88,166,255,0.8)','rgba(227,179,65,0.8)','rgba(247,129,102,0.8)'], borderColor:'#161b22', borderWidth:3 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{position:'bottom',labels:{color:'#8b949e',padding:14}}, tooltip:{callbacks:{label:ctx=>` ${ctx.raw} TTP(s)`}} } }
+  });
+}
+
+function renderMatrix(actors, ttps) {
+  const table = document.getElementById('matrix-table');
+  const sets  = actors.map(a => new Set(a.ttps));
+  let html = '<thead><tr><th class="actor-header">Actor \\ TTP</th>';
+  ttps.forEach(t => { html += `<th title="${t}">${t}</th>`; });
+  html += '<th>Total</th></tr></thead><tbody>';
+  let ci = 0;
+  actors.forEach(({actor, ttps:at}, i) => {
+    html += `<tr><td class="actor-name">${escHtml(actor)}</td>`;
+    ttps.forEach(t => {
+      const d = `${Math.min(ci*0.008,0.5)}s`; ci++;
+      html += sets[i].has(t)
+        ? `<td class="cell-yes" style="animation-delay:${d}">✓</td>`
+        : `<td class="cell-no">·</td>`;
+    });
+    html += `<td><strong>${at.length}</strong></td></tr>`;
+  });
+  html += '</tbody>';
+  table.innerHTML = html;
+}
+
+function buildPriorityTableHTML(sorted, freq, actors, total) {
+  if (!sorted.length) return '';
+  const max = freq[sorted[0]];
+  let html = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <thead><tr style="border-bottom:1px solid var(--border)">
+      <th style="padding:8px 10px;text-align:left;color:var(--text-muted);font-weight:600;width:60px">Rank</th>
+      <th style="padding:8px 10px;text-align:left;color:var(--text-muted);font-weight:600">TTP</th>
+      <th style="padding:8px 10px;text-align:left;color:var(--text-muted);font-weight:600">Actors</th>
+      <th style="padding:8px 10px;text-align:left;color:var(--text-muted);font-weight:600">Frequency</th>
+      <th style="padding:8px 10px;text-align:left;color:var(--text-muted);font-weight:600">Priority</th>
+      <th style="padding:8px 10px;text-align:left;color:var(--text-muted);font-weight:600">Coverage Bar</th>
+    </tr></thead><tbody>`;
+  sorted.forEach((ttp, i) => {
+    const f = freq[ttp];
+    const ac = [...actors[ttp]].join(', ');
+    const ratio = f / total;
+    let lbl, cls;
+    if (ratio >= 0.5)       { lbl='CRITICAL'; cls='priority-high'; }
+    else if (ratio >= 0.25) { lbl='HIGH';     cls='priority-med'; }
+    else                    { lbl='MEDIUM';   cls='priority-low'; }
+    const pct   = Math.round(f/max*100);
+    const color = cls==='priority-high' ? 'var(--accent2)' : cls==='priority-med' ? '#e3b341' : 'var(--accent)';
+    const delay = `${0.05+i*0.04}s`;
+    html += `<tr style="border-bottom:1px solid var(--border);opacity:0;animation:fadeSlideUp 0.35s ease ${delay} both">
+      <td style="padding:8px 10px;color:var(--text-muted)">${i+1}</td>
+      <td style="padding:8px 10px;font-weight:600;font-family:monospace">${escHtml(ttp)}</td>
+      <td style="padding:8px 10px;color:var(--text-muted);font-size:12px">${escHtml(ac)}</td>
+      <td style="padding:8px 10px">${f} / ${total}</td>
+      <td style="padding:8px 10px"><span class="${cls}" style="font-weight:700;font-size:12px">${lbl}</span></td>
+      <td style="padding:8px 10px;min-width:120px">
+        <div style="background:var(--border);border-radius:3px;height:8px;overflow:hidden">
+          <div class="bar-fill" style="background:${color};width:${pct}%;height:100%;border-radius:3px;animation-delay:${delay}"></div>
+        </div>
+      </td></tr>`;
+  });
+  return html + '</tbody></table>';
+}
+
+function renderPriorityList(s, f, a, n)     { document.getElementById('priority-list').innerHTML      = buildPriorityTableHTML(s, f, a, n); }
+function renderBasePriorityList(s, f, a, n) { document.getElementById('base-priority-list').innerHTML = buildPriorityTableHTML(s, f, a, n); }
+
+function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+// ════════════════════════════════════════════════════════════
+//  IMPORT / EXPORT CSV
+// ════════════════════════════════════════════════════════════
+
+function exportCSV() {
+  const data = getData();
+  if (!data.length) { alert('Nothing to export.'); return; }
+  let csv = 'Actor,TTPs\n';
+  data.forEach(({actor, ttps}) => {
+    csv += `"${actor.replace(/"/g,'""')}","${ttps.join(', ').replace(/"/g,'""')}"\n`;
+  });
+  downloadBlob(csv, 'actor-ttps.csv', 'text/csv');
+}
+
+function importCSV(event) {
+  const file = event.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.split(/\r?\n/).filter(l => l.trim());
+    document.getElementById('table-body').innerHTML = ''; rowCount = 0;
+    lines.slice(1).forEach(line => {
+      const p = parseCSVLine(line);
+      if (p.length >= 2) addRow(p[0], p[1]);
+    });
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function parseCSVLine(line) {
+  const result = []; let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+    else { cur += c; }
+  }
+  result.push(cur);
+  return result;
+}
+
+function downloadBlob(content, filename, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type }));
+  a.download = filename; a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ════════════════════════════════════════════════════════════
+//  SAMPLE DATA
+// ════════════════════════════════════════════════════════════
+
+function loadSample() {
+  document.getElementById('table-body').innerHTML = ''; rowCount = 0;
+  [
+    ['APT29 (Cozy Bear)',  'T1566.001, T1078, T1059.001, T1021.001, T1560, T1071.001, T1105, T1036.005'],
+    ['APT28 (Fancy Bear)', 'T1566.001, T1059.003, T1078, T1021.002, T1071.001, T1003.001, T1036'],
+    ['Lazarus Group',      'T1566.002, T1059.001, T1105, T1071.001, T1027, T1486, T1078'],
+    ['FIN7',               'T1566.001, T1059.001, T1059.003, T1003.001, T1021.001, T1036.005, T1041'],
+    ['Scattered Spider',   'T1078, T1566.001, T1621, T1098, T1021.001, T1059.001'],
+    ['BlackCat / ALPHV',   'T1486, T1078, T1021.001, T1059.001, T1560, T1027, T1070.004'],
+    ['Volt Typhoon',       'T1078, T1021.002, T1059.003, T1071.001, T1036, T1070.003'],
+  ].forEach(([a,t]) => addRow(a,t));
+}
+
+// ════════════════════════════════════════════════════════════
+//  BUILDER — CHECKLIST DOM
+// ════════════════════════════════════════════════════════════
+
+function buildChecklistDOM() {
+  const container = document.getElementById('checklist-container');
+  const tacticSel = document.getElementById('tactic-filter');
+  container.innerHTML = '';
+
+  // populate tactic filter dropdown
+  TACTIC_MAP.forEach(tac => {
+    const opt = document.createElement('option');
+    opt.value = tac.id; opt.textContent = tac.name;
+    tacticSel.appendChild(opt);
+  });
+
+  TACTIC_MAP.forEach(tac => {
+    const group = document.createElement('div');
+    group.className  = 'tactic-group';
+    group.dataset.tactic = tac.id;
+
+    // Build TTP rows HTML
+    let rowsHTML = '';
+    tac.techniques.forEach(t => {
+      rowsHTML += `
+        <div class="ttp-row" data-id="${t.id}" data-tactic="${tac.id}" onclick="toggleRow(this)">
+          <input type="checkbox" data-id="${t.id}" onclick="event.stopPropagation(); onCheckboxChange(this)">
+          <span class="ttp-id">${t.id}</span>
+          <span class="ttp-name">${escHtml(t.name)}</span>
+        </div>`;
+    });
+
+    group.innerHTML = `
+      <div class="tactic-header" style="border-left-color: ${tac.color}" onclick="toggleTacticCollapse(this.parentElement)">
+        <span class="tactic-name" style="color:${tac.color}">${tac.name}</span>
+        <span class="tactic-count" id="tcount-${tac.id}">0 / ${tac.techniques.length}</span>
+        <button class="tactic-toggle-all" onclick="event.stopPropagation(); toggleTacticAll('${tac.id}')">Toggle All</button>
+        <span class="tactic-chevron">▾</span>
+      </div>
+      <div class="tactic-body">${rowsHTML}</div>
+    `;
+    container.appendChild(group);
+  });
+}
+
+function toggleTacticCollapse(groupEl) {
+  groupEl.classList.toggle('collapsed');
+}
+
+function toggleRow(rowEl) {
+  const cb = rowEl.querySelector('input[type="checkbox"]');
+  cb.checked = !cb.checked;
+  onCheckboxChange(cb);
+}
+
+function onCheckboxChange(cb) {
+  const id = cb.dataset.id;
+  if (cb.checked) {
+    STATE.checked.add(id);
+    // animate
+    cb.style.animation = 'none';
+    requestAnimationFrame(() => { cb.style.animation = 'checkPop 0.2s ease'; });
+  } else {
+    STATE.checked.delete(id);
+  }
+  updateTacticCount(cb.closest('.tactic-group').dataset.tactic);
+  updateSelectedCountBadge();
+  updatePreview();
+}
+
+function toggleTacticAll(tacticId) {
+  const group   = document.querySelector(`.tactic-group[data-tactic="${tacticId}"]`);
+  const visible = [...group.querySelectorAll('.ttp-row:not(.filtered-out)')];
+  const boxes   = visible.map(r => r.querySelector('input[type="checkbox"]'));
+  const anyUnchecked = boxes.some(b => !b.checked);
+
+  boxes.forEach((b, i) => {
+    b.checked = anyUnchecked;
+    if (anyUnchecked) { STATE.checked.add(b.dataset.id); } else { STATE.checked.delete(b.dataset.id); }
+    // flash animation staggered
+    const row = visible[i];
+    row.classList.remove('row-flash');
+    requestAnimationFrame(() => {
+      row.offsetWidth; // reflow
+      row.classList.add('row-flash');
+    });
+  });
+  updateTacticCount(tacticId);
+  updateSelectedCountBadge();
+  updatePreview();
+}
+
+function updateTacticCount(tacticId) {
+  const group = document.querySelector(`.tactic-group[data-tactic="${tacticId}"]`);
+  if (!group) return;
+  const total   = group.querySelectorAll('.ttp-row').length;
+  const visible = group.querySelectorAll('.ttp-row:not(.filtered-out):not(.priority-hidden)').length;
+  const checked = group.querySelectorAll('.ttp-row:not(.filtered-out):not(.priority-hidden) input:checked').length;
+  const span    = document.getElementById(`tcount-${tacticId}`);
+  if (span) span.textContent = `${checked} / ${visible < total ? visible + ' shown of ' + total : total}`;
+}
+
+function updateAllTacticCounts() {
+  TACTIC_MAP.forEach(t => updateTacticCount(t.id));
+}
+
+function updateSelectedCountBadge() {
+  const badge = document.getElementById('selected-count-badge');
+  const n     = STATE.checked.size;
+  badge.textContent = n === 0 ? '0 selected' : `${n} selected`;
+  badge.classList.toggle('has-selection', n > 0);
+}
+
+// ════════════════════════════════════════════════════════════
+//  BUILDER — SYNC FROM TRACKER
+// ════════════════════════════════════════════════════════════
+
+function syncBuilderFromTracker(showToastMsg) {
+  const data = getData();
+  STATE.trackerTtps = new Set(data.flatMap(r => r.ttps));
+  STATE.totalActors = data.length;
+
+  // ── Compute per-TTP priority based on actor frequency ──
+  STATE.ttpPriority = {};
+  if (data.length > 0) {
+    const ttpFreq = {};
+    data.forEach(({ ttps }) => {
+      new Set(ttps).forEach(t => { ttpFreq[t] = (ttpFreq[t] || 0) + 1; });
+    });
+    Object.entries(ttpFreq).forEach(([id, count]) => {
+      const ratio = count / data.length;
+      if      (ratio >= 0.5)  STATE.ttpPriority[id] = 'critical';
+      else if (ratio >= 0.25) STATE.ttpPriority[id] = 'high';
+      else                    STATE.ttpPriority[id] = 'medium';
+    });
+  }
+
+  // ── Render priority badges on every row ──
+  document.querySelectorAll('.ttp-row').forEach(row => {
+    const id      = row.dataset.id;
+    const inTrack = STATE.trackerTtps.has(id);
+    row.classList.toggle('from-tracker', inTrack);
+
+    // remove old badge if present
+    const old = row.querySelector('.priority-badge');
+    if (old) old.remove();
+
+    if (inTrack && STATE.ttpPriority[id]) {
+      const p    = STATE.ttpPriority[id];
+      const span = document.createElement('span');
+      span.className   = `priority-badge ${p}`;
+      span.textContent = p;
+      span.title       = `${p.charAt(0).toUpperCase()+p.slice(1)} priority — used by ${
+        Math.round((Object.entries(STATE.ttpPriority).find(([k])=>k===id)?.[1]??0) * 0)} of ${data.length} actors`;
+      // insert before the name span
+      const nameSpan = row.querySelector('.ttp-name');
+      row.insertBefore(span, nameSpan);
+    }
+  });
+
+  // ── Re-apply priority counts to status bar ──
+  const critCount = Object.values(STATE.ttpPriority).filter(v=>v==='critical').length;
+  const highCount = Object.values(STATE.ttpPriority).filter(v=>v==='high').length;
+  const medCount  = Object.values(STATE.ttpPriority).filter(v=>v==='medium').length;
+
+  // ── Pre-check boxes from tracker ──
+  if (STATE.trackerTtps.size > 0) {
+    STATE.checked = new Set(STATE.trackerTtps);
+    document.querySelectorAll('.ttp-row input[type="checkbox"]').forEach(cb => {
+      cb.checked = STATE.trackerTtps.has(cb.dataset.id);
+    });
+    appendCustomTtps([...STATE.trackerTtps].filter(id => !TECHNIQUE_LOOKUP[id]));
+  }
+
+  // Re-apply active priority filter
+  applyPriorityFilter(STATE.priorityFilter);
+
+  updateAllTacticCounts();
+  updateSelectedCountBadge();
+
+  // Update status bar
+  const n      = STATE.trackerTtps.size;
+  const actors = data.length;
+  document.getElementById('builder-status-text').textContent =
+    actors > 0
+      ? `${actors} actor${actors>1?'s':''} · ${n} TTPs · 🔴 ${critCount} Critical · 🟡 ${highCount} High · 🔵 ${medCount} Medium`
+      : 'No actor data in tracker yet — add actors in the TTP Tracker tab.';
+  const badge = document.getElementById('builder-status-badge');
+  badge.textContent = `${n} TTPs`;
+  badge.className   = 'status-badge' + (n > 0 ? '' : ' empty');
+
+  updatePreview();
+  if (showToastMsg) showToast(`Refreshed — ${n} TTPs · 🔴${critCount} 🟡${highCount} 🔵${medCount}`);
+}
+
+function appendCustomTtps(unknownIds) {
+  if (!unknownIds.length) return;
+  const container = document.getElementById('checklist-container');
+  let group = document.getElementById('custom-tactic-group');
+  if (!group) {
+    group = document.createElement('div');
+    group.className  = 'tactic-group';
+    group.dataset.tactic = 'CUSTOM';
+    group.id = 'custom-tactic-group';
+    group.innerHTML = `
+      <div class="tactic-header" style="border-left-color:#8b949e" onclick="toggleTacticCollapse(this.parentElement)">
+        <span class="tactic-name" style="color:#8b949e">Unknown / Custom Techniques</span>
+        <span class="tactic-count" id="tcount-CUSTOM">0</span>
+        <button class="tactic-toggle-all" onclick="event.stopPropagation(); toggleTacticAll('CUSTOM')">Toggle All</button>
+        <span class="tactic-chevron">▾</span>
+      </div>
+      <div class="tactic-body" id="custom-tactic-body"></div>
+    `;
+    container.appendChild(group);
+  }
+  const body = document.getElementById('custom-tactic-body');
+  // add only new ones
+  unknownIds.forEach(id => {
+    if (document.querySelector(`.ttp-row[data-id="${id}"][data-tactic="CUSTOM"]`)) return;
+    const div = document.createElement('div');
+    div.className   = 'ttp-row from-tracker';
+    div.dataset.id     = id;
+    div.dataset.tactic = 'CUSTOM';
+    div.onclick = function() { toggleRow(this); };
+    div.innerHTML = `
+      <input type="checkbox" data-id="${id}" checked onclick="event.stopPropagation(); onCheckboxChange(this)">
+      <span class="ttp-id">${id}</span>
+      <span class="ttp-name" style="color:var(--text-muted)">Custom / not in database</span>
+    `;
+    body.appendChild(div);
+    STATE.checked.add(id);
+  });
+  updateTacticCount('CUSTOM');
+}
+
+// ════════════════════════════════════════════════════════════
+//  BUILDER — FILTERING
+// ════════════════════════════════════════════════════════════
+
+function onSearch(query) {
+  const q = query.toLowerCase().trim();
+  document.querySelectorAll('.ttp-row').forEach(row => {
+    const id   = row.dataset.id.toLowerCase();
+    const name = row.querySelector('.ttp-name').textContent.toLowerCase();
+    row.classList.toggle('filtered-out', q.length > 0 && !id.includes(q) && !name.includes(q));
+  });
+  applyTacticVisibility();
+  updateAllTacticCounts();
+}
+
+function onTacticFilter(tacticId) {
+  document.querySelectorAll('.tactic-group').forEach(g => {
+    const show = tacticId === 'all' || g.dataset.tactic === tacticId;
+    g.classList.toggle('all-filtered', !show);
+  });
+}
+
+function applyTacticVisibility() {
+  document.querySelectorAll('.tactic-group').forEach(g => {
+    const visible = g.querySelectorAll('.ttp-row:not(.filtered-out):not(.priority-hidden)').length;
+    g.classList.toggle('all-filtered', visible === 0);
+  });
+}
+
+function selectAll() {
+  document.querySelectorAll('.ttp-row:not(.filtered-out):not(.priority-hidden) input[type="checkbox"]').forEach(cb => {
+    cb.checked = true; STATE.checked.add(cb.dataset.id);
+  });
+  updateAllTacticCounts(); updateSelectedCountBadge(); updatePreview();
+}
+
+function deselectAll() {
+  document.querySelectorAll('.ttp-row input[type="checkbox"]').forEach(cb => {
+    cb.checked = false; STATE.checked.delete(cb.dataset.id);
+  });
+  updateAllTacticCounts(); updateSelectedCountBadge(); updatePreview();
+}
+
+// Select (and only select) TTPs matching one or more priority levels
+// e.g. selectByPriority('critical') or selectByPriority('critical','high')
+function selectByPriority(...levels) {
+  // first deselect everything
+  document.querySelectorAll('.ttp-row input[type="checkbox"]').forEach(cb => {
+    cb.checked = false; STATE.checked.delete(cb.dataset.id);
+  });
+  // then select matching
+  let count = 0;
+  document.querySelectorAll('.ttp-row').forEach(row => {
+    const p = STATE.ttpPriority[row.dataset.id];
+    if (p && levels.includes(p)) {
+      const cb = row.querySelector('input[type="checkbox"]');
+      cb.checked = true;
+      STATE.checked.add(row.dataset.id);
+      count++;
+      // brief flash
+      row.classList.remove('row-flash');
+      requestAnimationFrame(() => { row.offsetWidth; row.classList.add('row-flash'); });
+    }
+  });
+  updateAllTacticCounts(); updateSelectedCountBadge(); updatePreview();
+  showToast(`✓ Selected ${count} ${levels.join(' + ')} TTP${count!==1?'s':''}`);
+}
+
+function onPriorityFilter(value) {
+  STATE.priorityFilter = value;
+  applyPriorityFilter(value);
+  updateAllTacticCounts();
+  applyTacticVisibility();
+}
+
+function applyPriorityFilter(value) {
+  document.querySelectorAll('.ttp-row').forEach(row => {
+    const p = STATE.ttpPriority[row.dataset.id]; // undefined if not in tracker
+    let hide = false;
+    if (value === 'critical') hide = p !== 'critical';
+    else if (value === 'high')   hide = p !== 'high';
+    else if (value === 'medium') hide = p !== 'medium';
+    else if (value === 'ranked') hide = !p;   // hide TTPs not in tracker at all
+    row.classList.toggle('priority-hidden', hide);
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  BUILDER — OPTIONS
+// ════════════════════════════════════════════════════════════
+
+function onPlatformChange(platform) {
+  STATE.platform = platform;
+  document.getElementById('lbl-ps').classList.toggle('selected',   platform === 'powershell');
+  document.getElementById('lbl-bash').classList.toggle('selected', platform === 'bash');
+  const ext = platform === 'powershell' ? '.ps1' : '.sh';
+  document.getElementById('download-btn').textContent  = `↓ Download ${ext}`;
+  document.getElementById('preview-title').textContent = `Script Preview · ${platform === 'powershell' ? 'PowerShell' : 'Bash'}`;
+  updatePreview();
+}
+
+// ════════════════════════════════════════════════════════════
+//  BUILDER — SCRIPT GENERATION
+// ════════════════════════════════════════════════════════════
+
+function getOptions() {
+  return {
+    platform:     STATE.platform,
+    checkPrereqs: document.getElementById('ph-checkprereqs').checked,
+    getPrereqs:   document.getElementById('ph-getprereqs').checked,
+    run:          document.getElementById('ph-run').checked,
+    cleanup:      document.getElementById('ph-cleanup').checked,
+    timeout:      parseInt(document.getElementById('opt-timeout').value) || 120,
+    atomicsPath:  document.getElementById('opt-atomics-path').value.trim(),
+    testNums:     document.getElementById('opt-test-nums').value.trim(),
+    logOutput:    document.getElementById('opt-log').checked,
+  };
+}
+
+function getTtpsOrdered() {
+  // Return selected TTPs ordered by tactic kill-chain, then by id
+  const order = {};
+  TACTIC_MAP.forEach((tac, ti) => { tac.techniques.forEach(t => { if (!order[t.id]) order[t.id] = ti; }); });
+
+  return [...STATE.checked].sort((a, b) => {
+    const oa = order[a] ?? 99;
+    const ob = order[b] ?? 99;
+    if (oa !== ob) return oa - ob;
+    return a.localeCompare(b);
+  });
+}
+
+function updatePreview() {
+  const pre  = document.getElementById('script-preview');
+  const ttps = getTtpsOrdered();
+
+  if (!ttps.length) {
+    pre.innerHTML = '<span class="sc-comment"># Select TTPs from the checklist on the left\n# to generate your Atomic Red Team script.</span>';
+    return;
+  }
+
+  const opts   = getOptions();
+  const script = opts.platform === 'powershell'
+    ? generatePowerShellScript(ttps, opts)
+    : generateBashScript(ttps, opts);
+
+  pre.textContent = script;
+  pre.classList.remove('preview-flash');
+  requestAnimationFrame(() => { pre.offsetWidth; pre.classList.add('preview-flash'); });
+}
+
+// ── PowerShell ──────────────────────────────────────────────
+
+function generatePowerShellScript(ttps, opts) {
+  const phases = [];
+  if (opts.checkPrereqs) phases.push('CheckPrereqs');
+  if (opts.getPrereqs)   phases.push('GetPrereqs');
+  if (opts.run)          phases.push('Run');
+  if (opts.cleanup)      phases.push('Cleanup');
+
+  const today    = new Date().toISOString().split('T')[0];
+  const pathFlag = opts.atomicsPath ? `\n    -PathToAtomicsFolder "${opts.atomicsPath}"` : '';
+  const testNums = opts.testNums ? opts.testNums.replace(/\s+/g, '') : '';
+  const numFlag  = testNums ? ` -TestNumbers ${testNums}` : '';
+
+  let s = '';
+  s += `#Requires -Version 5.1\n`;
+  s += `<#\n`;
+  s += `.SYNOPSIS\n    Atomic Red Team Test Script\n`;
+  s += `.DESCRIPTION\n`;
+  s += `    Generated by Atomic Test Builder  |  ${today}\n`;
+  const critList = ttps.filter(id => STATE.ttpPriority[id] === 'critical');
+  const highList = ttps.filter(id => STATE.ttpPriority[id] === 'high');
+  const medList  = ttps.filter(id => STATE.ttpPriority[id] === 'medium');
+  const unranked = ttps.filter(id => !STATE.ttpPriority[id]);
+  s += `    Techniques : ${ttps.length} selected\n`;
+  s += `    Priority   : 🔴 ${critList.length} Critical  🟡 ${highList.length} High  🔵 ${medList.length} Medium${unranked.length ? `  ⚪ ${unranked.length} Unranked` : ''}\n`;
+  if (critList.length)  s += `    Critical   : ${critList.join(', ')}\n`;
+  if (highList.length)  s += `    High       : ${highList.join(', ')}\n`;
+  if (medList.length)   s += `    Medium     : ${medList.join(', ')}\n`;
+  s += `    Phases     : ${phases.join(', ') || 'none'}\n`;
+  s += `    Timeout    : ${opts.timeout}s per test\n`;
+  s += `    Logging    : ${opts.logOutput ? 'enabled' : 'disabled'}\n`;
+  s += `.NOTES\n`;
+  s += `    Requires Invoke-AtomicRedTeam to be installed.\n`;
+  s += `    Run PowerShell as Administrator for best results.\n`;
+  s += `#>\n\n`;
+
+  s += `# ══════════════════════════════════════════════════════\n`;
+  s += `#  CONFIGURATION\n`;
+  s += `# ══════════════════════════════════════════════════════\n`;
+  if (opts.atomicsPath) {
+    s += `$AtomicsPath = "${opts.atomicsPath}"\n`;
+  }
+  s += `$TimeoutSecs = ${opts.timeout}\n`;
+  if (opts.logOutput) {
+    s += `$LogPath     = ".\\atomic-log-$(Get-Date -Format 'yyyyMMdd-HHmmss').txt"\n`;
+  }
+  s += `\n`;
+  s += `Set-ExecutionPolicy Bypass -Scope Process -Force\n\n`;
+
+  if (opts.logOutput) {
+    s += `Start-Transcript -Path $LogPath -Append | Out-Null\n`;
+    s += `Write-Host "[*] Logging to $LogPath" -ForegroundColor Gray\n\n`;
+  }
+
+  // Group TTPs by tactic
+  const byTactic = {};
+  ttps.forEach(id => {
+    const info    = TECHNIQUE_LOOKUP[id] || { tacticName: 'Unknown', name: id };
+    const tac     = info.tacticName;
+    if (!byTactic[tac]) byTactic[tac] = [];
+    byTactic[tac].push({ id, name: info.name });
+  });
+
+  // Emit per tactic
+  Object.entries(byTactic).forEach(([tac, techs]) => {
+    s += `\n# ══════════════════════════════════════════════════════\n`;
+    s += `#  TACTIC: ${tac.toUpperCase()}\n`;
+    s += `# ══════════════════════════════════════════════════════\n\n`;
+
+    techs.forEach(({ id, name }) => {
+      const p       = STATE.ttpPriority[id];
+      const pLabel  = p ? p.toUpperCase() : 'UNRANKED';
+      const pIcon   = p === 'critical' ? '🔴' : p === 'high' ? '🟡' : p === 'medium' ? '🔵' : '⚪';
+      s += `# ── ${pIcon} [${pLabel}] ${id} — ${name}\n`;
+
+      if (opts.checkPrereqs) {
+        s += `Write-Host "  [?] ${pIcon} ${id}" -ForegroundColor Cyan\n`;
+        s += `Invoke-AtomicTest ${id}${numFlag} -CheckPrereqs -TimeoutSeconds $TimeoutSecs${pathFlag}\n\n`;
+      }
+      if (opts.getPrereqs) {
+        s += `Write-Host "  [+] ${pIcon} ${id}" -ForegroundColor Yellow\n`;
+        s += `Invoke-AtomicTest ${id}${numFlag} -GetPrereqs -TimeoutSeconds $TimeoutSecs${pathFlag}\n\n`;
+      }
+      if (opts.run) {
+        s += `Write-Host "  [>] ${pIcon} ${id}" -ForegroundColor White\n`;
+        s += `Invoke-AtomicTest ${id}${numFlag} -TimeoutSeconds $TimeoutSecs${pathFlag}\n\n`;
+      }
+      if (opts.cleanup) {
+        s += `Write-Host "  [~] ${pIcon} ${id}" -ForegroundColor Gray\n`;
+        s += `Invoke-AtomicTest ${id}${numFlag} -Cleanup -TimeoutSeconds $TimeoutSecs${pathFlag}\n\n`;
+      }
+    });
+  });
+
+  if (opts.logOutput) {
+    s += `Stop-Transcript\n`;
+    s += `Write-Host "\n[+] Done. Log saved to $LogPath" -ForegroundColor Green\n`;
+  } else {
+    s += `Write-Host "\n[+] Done." -ForegroundColor Green\n`;
+  }
+
+  return s;
+}
+
+// ── Bash / atomic-operator ──────────────────────────────────
+
+function generateBashScript(ttps, opts) {
+  const phases = [];
+  if (opts.checkPrereqs) phases.push('check-prereqs');
+  if (opts.getPrereqs)   phases.push('get-prereqs');
+  if (opts.run)          phases.push('run');
+  if (opts.cleanup)      phases.push('cleanup');
+
+  const today     = new Date().toISOString().split('T')[0];
+  const pathArg   = opts.atomicsPath ? ` \\\n    --atomics-path "${opts.atomicsPath}"` : '';
+  const testNums  = opts.testNums ? opts.testNums.replace(/\s+/g,'') : '';
+  const numsArg   = testNums ? ` \\\n    --test-numbers ${testNums.split(',').join(' ')}` : '';
+
+  let s = '';
+  s += `#!/usr/bin/env bash\n`;
+  s += `# ══════════════════════════════════════════════════════\n`;
+  s += `# Atomic Red Team Test Script (atomic-operator)\n`;
+  s += `# Generated by Atomic Test Builder  |  ${today}\n`;
+  const bCrit = ttps.filter(id => STATE.ttpPriority[id] === 'critical');
+  const bHigh = ttps.filter(id => STATE.ttpPriority[id] === 'high');
+  const bMed  = ttps.filter(id => STATE.ttpPriority[id] === 'medium');
+  s += `# Techniques : ${ttps.length} selected\n`;
+  s += `# Priority   : Critical(${bCrit.length}) High(${bHigh.length}) Medium(${bMed.length})\n`;
+  if (bCrit.length) s += `# Critical   : ${bCrit.join(', ')}\n`;
+  if (bHigh.length) s += `# High       : ${bHigh.join(', ')}\n`;
+  if (bMed.length)  s += `# Medium     : ${bMed.join(', ')}\n`;
+  s += `# Phases     : ${phases.join(', ') || 'none'}\n`;
+  s += `# Timeout    : ${opts.timeout}s per test\n`;
+  s += `# ══════════════════════════════════════════════════════\n`;
+  s += `#\n# Requires: pip install atomic-operator\n`;
+  s += `# Docs: https://github.com/swimlane/atomic-operator\n`;
+  s += `# ══════════════════════════════════════════════════════\n\n`;
+  s += `set -euo pipefail\n\n`;
+
+  if (opts.logOutput) {
+    s += `LOG_FILE="./atomic-log-$(date +%Y%m%d-%H%M%S).txt"\n`;
+    s += `exec > >(tee -a "$LOG_FILE") 2>&1\n`;
+    s += `echo "[*] Logging to $LOG_FILE"\n\n`;
+  }
+
+  // Group by tactic
+  const byTactic = {};
+  ttps.forEach(id => {
+    const info = TECHNIQUE_LOOKUP[id] || { tacticName: 'Unknown', name: id };
+    const tac  = info.tacticName;
+    if (!byTactic[tac]) byTactic[tac] = [];
+    byTactic[tac].push({ id, name: info.name });
+  });
+
+  Object.entries(byTactic).forEach(([tac, techs]) => {
+    s += `\n# ══════════════════════════════════════════════════════\n`;
+    s += `# TACTIC: ${tac.toUpperCase()}\n`;
+    s += `# ══════════════════════════════════════════════════════\n\n`;
+
+    techs.forEach(({ id, name }) => {
+      const p      = STATE.ttpPriority[id];
+      const pLabel = p ? p.toUpperCase() : 'UNRANKED';
+      const pIcon  = p === 'critical' ? '🔴' : p === 'high' ? '🟡' : p === 'medium' ? '🔵' : '⚪';
+      s += `# ── ${pIcon} [${pLabel}] ${id} — ${name}\n`;
+
+      if (opts.checkPrereqs) {
+        s += `echo "  [?] ${pIcon} ${id}"\n`;
+        s += `atomic-operator run \\\n    --techniques ${id}${numsArg} \\\n    --check-prereqs \\\n    --timeout ${opts.timeout}${pathArg}\n\n`;
+      }
+      if (opts.getPrereqs) {
+        s += `echo "  [+] ${pIcon} ${id}"\n`;
+        s += `atomic-operator run \\\n    --techniques ${id}${numsArg} \\\n    --get-prereqs \\\n    --timeout ${opts.timeout}${pathArg}\n\n`;
+      }
+      if (opts.run) {
+        s += `echo "  [>] ${pIcon} ${id}"\n`;
+        s += `atomic-operator run \\\n    --techniques ${id}${numsArg} \\\n    --timeout ${opts.timeout}${pathArg}\n\n`;
+      }
+      if (opts.cleanup) {
+        s += `echo "  [~] ${pIcon} ${id}"\n`;
+        s += `atomic-operator run \\\n    --techniques ${id}${numsArg} \\\n    --cleanup \\\n    --timeout ${opts.timeout}${pathArg}\n\n`;
+      }
+    });
+  });
+
+  if (opts.logOutput) {
+    s += `echo ""\necho "[+] Done. Log saved to $LOG_FILE"\n`;
+  } else {
+    s += `echo ""\necho "[+] Done."\n`;
+  }
+
+  return s;
+}
+
+// ════════════════════════════════════════════════════════════
+//  BUILDER — COPY / DOWNLOAD
+// ════════════════════════════════════════════════════════════
+
+function copyScript() {
+  const text = document.getElementById('script-preview').textContent;
+  if (!text || text.startsWith('# Select TTPs')) { showToast('Nothing to copy yet!'); return; }
+  navigator.clipboard.writeText(text)
+    .then(() => showToast('✓  Copied to clipboard!'))
+    .catch(() => showToast('Copy failed — try selecting + Ctrl+C'));
+}
+
+function downloadScript() {
+  const text = document.getElementById('script-preview').textContent;
+  if (!text || text.startsWith('# Select TTPs')) { showToast('Select TTPs first!'); return; }
+  const ext  = STATE.platform === 'powershell' ? 'ps1' : 'sh';
+  const date = new Date().toISOString().split('T')[0];
+  downloadBlob(text, `atomic-tests-${date}.${ext}`, 'text/plain');
+}
+
+// ════════════════════════════════════════════════════════════
+//  UTILITIES
+// ════════════════════════════════════════════════════════════
+
+function showToast(msg, dur = 2200) {
+  const t = document.createElement('div');
+  t.className   = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => {
+    t.classList.add('hiding');
+    setTimeout(() => t.remove(), 300);
+  }, dur - 300);
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ════════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════════
+
+addRow(); addRow(); addRow();
+</script>
+</body>
+</html>
